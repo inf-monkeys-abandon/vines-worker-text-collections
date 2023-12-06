@@ -26,6 +26,20 @@ BLOCK_DEF = {
             "required": True,
         },
         {
+            "name": "docs",
+            "type": "notice",
+            "displayName": '过滤表达式用于对向量进行精准过滤，如 metadata["source"] == "example"，详细语法请见：[https://milvus.io/docs/json_data_type.md](https://milvus.io/docs/json_data_type.md)'
+        },
+        {
+            "displayName": '过滤表达式',
+            "name": 'expr',
+            "type": 'string',
+            "default": '',
+            "required": False,
+            "placeholder": 'metadata["source"] == "example"',
+            "extra": ""
+        },
+        {
             "displayName": 'TopK',
             "name": 'topK',
             "type": 'number',
@@ -68,16 +82,16 @@ def handler(task):
 
     collection = input_data.get('collection')
     question = input_data.get('question')
+    expr = input_data.get('expr')
     top_k = input_data.get('topK')
 
     milvus_client = MilvusClient(
         collection_name=collection
     )
     embedding_model = milvus_client.collection.description
-    print(embedding_model)
     embedding = generate_embedding_of_model(embedding_model, question)
 
-    data = milvus_client.search_vector(embedding, top_k)
+    data = milvus_client.search_vector(embedding, expr, top_k)
 
     return {
         "result": data

@@ -1,15 +1,7 @@
-import time
-
 from vines_worker_sdk.server import create_server
-from vines_worker_sdk.utils.files import ensure_directory_exists
 from flask import request
 import os
-from langchain.text_splitter import CharacterTextSplitter
-from langchain.document_loaders import TextLoader, PyMuPDFLoader, CSVLoader, UnstructuredFileLoader, \
-    UnstructuredMarkdownLoader, \
-    JSONLoader
-from src.milvus import MilvusClient, create_milvus_collection
-from src.oss import oss_client
+from src.milvus import MilvusClient, create_milvus_collection, create_user, MILVUS_PUBLIC_ADDRESS
 from src.utils import generate_embedding_of_model
 
 SERVICE_AUTHENTICATION_TOKEN = os.environ.get("SERVICE_AUTHENTICATION_TOKEN")
@@ -20,6 +12,32 @@ app = create_server(
     service_token=SERVICE_AUTHENTICATION_TOKEN,
     import_name="vines-worker-milvus",
 )
+
+
+@app.get("/api/system-info")
+def get_system_info():
+    [host, port] = MILVUS_PUBLIC_ADDRESS.split(":")
+    return {
+        "host": host,
+        "port": port
+    }
+
+
+@app.post("/api/create-user")
+def create_user_handler():
+    data = request.json
+    role_name = data.get('role_name')
+    username = data.get('username')
+    password = data.get('password')
+    result = create_user(
+        role_name,
+        username,
+        password
+    )
+    print(result)
+    return {
+        "success": True
+    }
 
 
 @app.post("/api/vector/save-vector-from-text")
@@ -103,10 +121,12 @@ def search_vector():
 @app.post('/api/collections')
 def create_collection():
     data = request.json
+    role_name = data.get('role_name')
     name = data.get('name')
     embedding_model = data.get('embedding_model')
     dimension = data.get('dimension')
     create_milvus_collection(
+        role_name,
         name,
         embedding_model,
         dimension

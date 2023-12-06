@@ -3,6 +3,8 @@ from pymilvus import (
     connections,
     FieldSchema, CollectionSchema, DataType,
     Collection,
+    utility,
+    Role
 )
 from vines_worker_sdk.utils.files import ensure_directory_exists
 from ..utils import generate_pk, generate_embedding_of_model
@@ -14,14 +16,24 @@ from langchain.text_splitter import CharacterTextSplitter
 import time
 
 MILVUS_ADDRESS = os.environ.get('MILVUS_ADDRESS')
-if not MILVUS_ADDRESS:
-    raise Exception("请在环境变量中配置 MILVUS_ADDRESS")
+MILVUS_PUBLIC_ADDRESS = os.environ.get('MILVUS_PUBLIC_ADDRESS')
+MILVUS_USER = os.environ.get("MILVUS_USER")
+MILVUS_PASSWORD = os.environ.get("MILVUS_PASSWORD")
+
+if not (MILVUS_ADDRESS and MILVUS_USER and MILVUS_PASSWORD):
+    raise Exception("请在环境变量中配置 MILVUS_ADDRESS, MILVUS_USER 和 MILVUS_PASSWORD")
 
 [MILVUS_HOST, MILVUS_PORT] = MILVUS_ADDRESS.split(':')
-connections.connect("default", host=MILVUS_HOST, port=int(MILVUS_PORT))
+connections.connect(
+    "default",
+    host=MILVUS_HOST,
+    port=int(MILVUS_PORT),
+    user=MILVUS_USER,
+    password=MILVUS_PASSWORD
+)
 
 
-def create_milvus_collection(name: str, embedding_model: str, dimension: int):
+def create_milvus_collection(role_name: str, name: str, embedding_model: str, dimension: int):
     fields = [
         FieldSchema(name="pk", dtype=DataType.VARCHAR, is_primary=True, auto_id=False, max_length=100),
         FieldSchema(name="page_content", dtype=DataType.VARCHAR, max_length=65535),
@@ -36,6 +48,20 @@ def create_milvus_collection(name: str, embedding_model: str, dimension: int):
         "params": {"nlist": 128},
     }
     coll.create_index("embeddings", index)
+
+    role = Role(role_name)
+    role.grant("Collection", name, "*")
+
+
+def create_user(role_name, username, password):
+    role = Role(role_name)
+    if not role.is_exist():
+        role.create()
+    utility.create_user(
+        user=username,
+        password=password
+    )
+    role.add_user(username)
 
 
 class MilvusClient:
@@ -73,7 +99,8 @@ class MilvusClient:
 
     def search_vector(self, embedding, expr, limit):
         search_params = {"metric_type": "L2", "params": {"nprobe": 10}}
-        print(expr)
+        print(embedding)
+        print(len(embedding))
         result = self.collection.search(
             data=[embedding],
             anns_field="embeddings",

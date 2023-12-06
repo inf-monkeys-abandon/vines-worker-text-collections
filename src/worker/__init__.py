@@ -5,6 +5,8 @@ from vines_worker_sdk.conductor import ConductorClient
 from ..oss import oss_client
 from .blocks.search_vector import BLOCK_NAME as SEARCH_VECTOR_BLOCK_NAME, BLOCK_DEF as SEARCH_VECTOR_BLOCK_DEF, \
     handler as search_vector_handler
+from .blocks.insert_vector import BLOCK_NAME as INSERT_VECTOR_BLOCK_NAME, BLOCK_DEF as INSERT_VECTOR_BLOCK_DEF, \
+    handler as insert_vector_handler
 
 SERVICE_REGISTRATION_URL = os.environ.get("SERVICE_REGISTRATION_URL")
 SERVICE_REGISTRATION_TOKEN = os.environ.get("SERVICE_REGISTRATION_TOKEN")
@@ -40,4 +42,6 @@ signal.signal(signal.SIGINT, signal_handler)
 signal.signal(signal.SIGTERM, signal_handler)
 
 conductor_client.register_block(SEARCH_VECTOR_BLOCK_DEF)
+conductor_client.register_block(INSERT_VECTOR_BLOCK_DEF)
 conductor_client.register_handler(SEARCH_VECTOR_BLOCK_NAME, search_vector_handler)
+conductor_client.register_handler(INSERT_VECTOR_BLOCK_NAME, insert_vector_handler)

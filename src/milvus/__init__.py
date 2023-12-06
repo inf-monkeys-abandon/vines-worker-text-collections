@@ -4,7 +4,14 @@ from pymilvus import (
     FieldSchema, CollectionSchema, DataType,
     Collection,
 )
-from ..utils import generate_pk
+from vines_worker_sdk.utils.files import ensure_directory_exists
+from ..utils import generate_pk, generate_embedding_of_model
+from src.oss import oss_client
+from langchain.document_loaders import TextLoader, PyMuPDFLoader, CSVLoader, UnstructuredFileLoader, \
+    UnstructuredMarkdownLoader, \
+    JSONLoader
+from langchain.text_splitter import CharacterTextSplitter
+import time
 
 MILVUS_ADDRESS = os.environ.get('MILVUS_ADDRESS')
 if not MILVUS_ADDRESS:
@@ -103,3 +110,38 @@ class MilvusClient:
         ]
         result = self.collection.upsert(data)
         return result
+
+    def insert_vector_from_file(self, embedding_model, file_url, metadata=None):
+        folder = ensure_directory_exists("./download")
+        file_path = oss_client.download_file(file_url, folder)
+        file_ext = file_path.split('.')[-1]
+        if file_ext == '.pdf':
+            loader = PyMuPDFLoader(file_path=file_path)
+        elif file_ext == '.csv':
+            loader = CSVLoader(file_path=file_path)
+        elif file_ext == '.txt':
+            loader = TextLoader(file_path=file_path)
+        elif file_ext == '.md':
+            loader = UnstructuredMarkdownLoader(file_path=file_path)
+        elif file_ext == '.json' or file_ext == '.jsonl':
+            jq_schema = '.[]'
+            loader = JSONLoader(file_path=file_path, jq_schema=jq_schema)
+        else:
+            loader = UnstructuredFileLoader(file_path=file_path)
+
+        documents = loader.load()
+        text_splitter = CharacterTextSplitter(chunk_size=2000, chunk_overlap=0)
+        texts = text_splitter.split_documents(documents)
+        metadatas = []
+        for _ in texts:
+            item = {
+                "source": file_url,
+                "createdAt": int(time.time())
+            }
+            if metadata and isinstance(metadata, dict):
+                item.update(metadata)
+            metadatas.append(item)
+        texts = [text.page_content for text in texts]
+        embeddings = generate_embedding_of_model(embedding_model, texts)
+        res = self.insert_vectors(texts, embeddings, metadatas)
+        return res

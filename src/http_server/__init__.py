@@ -30,10 +30,10 @@ def save_vector_from_text():
     text = data.get('text')
     metadata = data.get('metadata', {})
     embedding = generate_embedding_of_model(embedding_model, [text])
-    client = MilvusClient(
+    milvus_client = MilvusClient(
         collection_name=name
     )
-    res = client.insert_vectors([text], embedding, [metadata])
+    res = milvus_client.insert_vectors([text], embedding, [metadata])
     print(res)
     return {
         "insert_count": res.insert_count,
@@ -49,45 +49,13 @@ def save_vector_from_file():
     data = request.json
     name = data.get('name')
     embedding_model = data.get('embedding_model')
+    metadata = data.get('metadata')
     fileURL = data.get('fileURL')
-
-    folder = ensure_directory_exists("./download")
-    file_path = oss_client.download_file(fileURL, folder)
-
-    file_ext = file_path.split('.')[-1]
-    if file_ext == '.pdf':
-        loader = PyMuPDFLoader(file_path=file_path)
-    elif file_ext == '.csv':
-        loader = CSVLoader(file_path=file_path)
-    elif file_ext == '.txt':
-        loader = TextLoader(file_path=file_path)
-    elif file_ext == '.md':
-        loader = UnstructuredMarkdownLoader(file_path=file_path)
-    elif file_ext == '.json' or file_ext == '.jsonl':
-        jq_schema = '.[]'
-        loader = JSONLoader(file_path=file_path, jq_schema=jq_schema)
-    else:
-        loader = UnstructuredFileLoader(file_path=file_path)
-
-    documents = loader.load()
-    text_splitter = CharacterTextSplitter(chunk_size=2000, chunk_overlap=0)
-    texts = text_splitter.split_documents(documents)
-    metadatas = [
-        {
-            "source": fileURL,
-            "createdAt": int(time.time())
-        } for _ in texts
-    ]
-    texts = [text.page_content for text in texts]
-
-    embeddings = generate_embedding_of_model(embedding_model, texts)
-
-    client = MilvusClient(
+    milvus_client = MilvusClient(
         collection_name=name
     )
-    res = client.insert_vectors(texts, embeddings, metadatas)
+    res = milvus_client.insert_vector_from_file(embedding_model, fileURL, metadata)
 
-    print(res)
     return {
         "insert_count": res.insert_count,
         "delete_count": res.delete_count,
@@ -102,10 +70,10 @@ def query_vector():
     data = request.json
     name = data.get('name')
     expr = ''
-    client = MilvusClient(
+    milvus_client = MilvusClient(
         collection_name=name
     )
-    records = client.query_vector(
+    records = milvus_client.query_vector(
         expr=expr,
         offset=0,
         limit=100,
@@ -123,10 +91,10 @@ def search_vector():
     expr = data.get('expr')
     q = data.get('q')
     embedding = generate_embedding_of_model(embedding_model, q)
-    client = MilvusClient(
+    milvus_client = MilvusClient(
         collection_name=name
     )
-    data = client.search_vector(embedding, expr, 10)
+    data = milvus_client.search_vector(embedding, expr, 10)
     return {
         "records": data,
     }
@@ -150,10 +118,10 @@ def create_collection():
 
 @app.delete("/api/collections/<string:name>/records/<string:pk>")
 def delete_record(name, pk):
-    client = MilvusClient(
+    milvus_client = MilvusClient(
         collection_name=name
     )
-    result = client.delete_record(pk)
+    result = milvus_client.delete_record(pk)
     return {
         "delete_count": result.delete_count
     }
@@ -166,10 +134,10 @@ def upsert_record(name, pk):
     metadata = data.get('metadata')
     embedding_model = data.get('embedding_model')
     embedding = generate_embedding_of_model(embedding_model, [text])
-    client = MilvusClient(
+    milvus_client = MilvusClient(
         collection_name=name
     )
-    result = client.upsert_record(pk, text, embedding, metadata)
+    result = milvus_client.upsert_record(pk, text, embedding, metadata)
     return {
         "upsert_count": result.upsert_count
     }

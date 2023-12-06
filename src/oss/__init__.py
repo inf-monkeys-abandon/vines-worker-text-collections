@@ -1,10 +1,6 @@
 import os
 from vines_worker_sdk.oss import OSSClient
 
-SERVICE_TOKEN = os.environ.get("SERVICE_TOKEN")
-if not SERVICE_TOKEN:
-    raise Exception("请在环境变量中配置 SERVICE_TOKEN")
-
 S3_ACCESS_KEY_ID = os.environ.get("S3_ACCESS_KEY_ID")
 S3_SECRET_ACCESS_KEY = os.environ.get("S3_SECRET_ACCESS_KEY")
 S3_ENDPOINT_URL = os.environ.get("S3_ENDPOINT_URL")

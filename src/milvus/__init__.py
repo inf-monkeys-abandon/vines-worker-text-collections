@@ -14,13 +14,14 @@ if not MILVUS_ADDRESS:
 connections.connect("default", host=MILVUS_HOST, port=int(MILVUS_PORT))
 
 
-def create_milvus_collection(name: str, description: str, dimension: int):
+def create_milvus_collection(name: str, embedding_model: str, dimension: int):
     fields = [
         FieldSchema(name="pk", dtype=DataType.VARCHAR, is_primary=True, auto_id=False, max_length=100),
-        FieldSchema(name="text", dtype=DataType.VARCHAR, max_length=65535),
-        FieldSchema(name="embeddings", dtype=DataType.FLOAT_VECTOR, dim=dimension)
+        FieldSchema(name="page_content", dtype=DataType.VARCHAR, max_length=65535),
+        FieldSchema(name="embeddings", dtype=DataType.FLOAT_VECTOR, dim=dimension),
+        FieldSchema(name="metadata", dtype=DataType.JSON),
     ]
-    schema = CollectionSchema(fields, description or "")
+    schema = CollectionSchema(fields, embedding_model)
     coll = Collection(name, schema, consistency_level="Strong")
     index = {
         "index_type": "IVF_FLAT",
@@ -37,35 +38,43 @@ class MilvusClient:
             consistency_level="Strong"
         )
         self.collection.load()
+        self.output_fields = [
+            'pk',
+            'page_content',
+            'metadata'
+        ]
 
-    def insert_vectors(self, texts, embeddings):
+    def insert_vectors(self, page_contents, embeddings, metadatas):
         pks = [
-            generate_pk() for text in texts
+            generate_pk() for _ in page_contents
         ]
         res = self.collection.insert([
             pks,
-            texts,
-            embeddings
+            page_contents,
+            embeddings,
+            metadatas
         ])
         return res
 
-    def query_vector(self, expr, output_fields, limit, offset):
+    def query_vector(self, expr, limit, offset):
         return self.collection.query(
             expr=expr,
-            output_fields=output_fields,
+            output_fields=self.output_fields,
             limit=limit,
             offset=offset
         )
 
-    def search_vector(self, embedding, limit):
+    def search_vector(self, embedding, expr, limit):
         search_params = {"metric_type": "L2", "params": {"nprobe": 10}}
+        print(expr)
         result = self.collection.search(
             data=[embedding],
             anns_field="embeddings",
-            output_fields=['pk', 'text'],
+            output_fields=self.output_fields,
             param=search_params,
             limit=limit,
-            consistency_level="Strong"
+            consistency_level="Strong",
+            expr=expr
         )
         data = []
         for hits in result:
@@ -74,7 +83,9 @@ class MilvusClient:
                 # dynamic fields are supported, but vector fields are not supported yet.
                 data.append({
                     "pk": hit.entity.get('pk'),
-                    "text": hit.entity.get('text')
+                    "page_content": hit.entity.get('page_content'),
+                    "metadata": hit.entity.get('metadata'),
+                    "score": hit.score
                 })
         return data
 
@@ -83,10 +94,12 @@ class MilvusClient:
         result = self.collection.delete(expr)
         return result
 
-    def upsert_record(self, pk, text, embedding):
+    def upsert_record(self, pk, text, embedding, metadata):
         data = [
             [pk],
             [text],
-            embedding
+            embedding,
+            [metadata]
         ]
         result = self.collection.upsert(data)
+        return result

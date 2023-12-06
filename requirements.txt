@@ -1,0 +1,7 @@
+FlagEmbedding
+protobuf==3.20.0
+grpcio-tools
+pymilvus==2.3.3
+langchain
+unstructured
+unstructured[pdf]

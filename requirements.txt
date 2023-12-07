@@ -5,3 +5,5 @@ pymilvus==2.3.3
 langchain
 unstructured
 unstructured[pdf]
+mongoengine
+shortid

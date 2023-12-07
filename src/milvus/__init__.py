@@ -53,7 +53,12 @@ def create_milvus_collection(role_name: str, name: str, embedding_model: str, di
     role.grant("Collection", name, "*")
 
 
-def create_user(role_name, username, password):
+def drop_milvus_collection(name):
+    coll = Collection(name, consistency_level="Strong")
+    coll.drop()
+
+
+def create_milvus_user(role_name, username, password):
     role = Role(role_name)
     if not role.is_exist():
         role.create()
@@ -81,6 +86,11 @@ class MilvusClient:
         pks = [
             generate_pk() for _ in page_contents
         ]
+
+        for metadata in metadatas:
+            if not metadata.get('createdAt'):
+                metadata['createdAt'] = int(time.time())
+
         res = self.collection.insert([
             pks,
             page_contents,
@@ -99,8 +109,6 @@ class MilvusClient:
 
     def search_vector(self, embedding, expr, limit):
         search_params = {"metric_type": "L2", "params": {"nprobe": 10}}
-        print(embedding)
-        print(len(embedding))
         result = self.collection.search(
             data=[embedding],
             anns_field="embeddings",
@@ -163,7 +171,6 @@ class MilvusClient:
         for _ in texts:
             item = {
                 "source": file_url,
-                "createdAt": int(time.time())
             }
             if metadata and isinstance(metadata, dict):
                 item.update(metadata)

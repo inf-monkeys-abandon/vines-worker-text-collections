@@ -6,5 +6,6 @@
 
 ```text
 brew install cmake
+brew install mupdf swig freetype
 ```
 

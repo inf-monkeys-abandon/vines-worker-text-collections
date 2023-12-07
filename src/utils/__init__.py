@@ -7,8 +7,6 @@ def generate_pk():
 
 
 def generate_embedding_of_model(model_name, q):
-    print(q)
-    print(model_name)
     model = FlagModel(
         model_name,
         use_fp16=True

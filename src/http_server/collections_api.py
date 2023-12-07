@@ -29,6 +29,14 @@ def create_collection():
     user_id = request.user_id
     team_id = request.team_id
 
+    # 在 milvus 中创建
+    role_name = f"team_{team_id}"
+    create_milvus_collection(
+        role_name,
+        name,
+        embedding_model,
+        dimension
+    )
     CollectionTable.insert_one(
         creator_user_id=user_id,
         team_id=team_id,
@@ -40,14 +48,6 @@ def create_collection():
         logo=logo
     )
 
-    # 在 milvus 中创建
-    role_name = f"team_{team_id}"
-    create_milvus_collection(
-        role_name,
-        name,
-        embedding_model,
-        dimension
-    )
     return {
         "success": True
     }

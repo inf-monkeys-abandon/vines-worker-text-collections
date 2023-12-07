@@ -49,10 +49,12 @@ def query_vector(name):
     milvus_client = MilvusClient(
         collection_name=name
     )
+    offset = data.get('offset', 0)
+    limit = data.get('limit', 30)
     records = milvus_client.query_vector(
         expr=expr,
-        offset=0,
-        limit=100,
+        offset=offset,
+        limit=limit,
     )
     return {
         "records": records
@@ -71,7 +73,7 @@ def search_vector(name):
     milvus_client = MilvusClient(
         collection_name=name
     )
-    data = milvus_client.search_vector(embedding, expr, 10)
+    data = milvus_client.search_vector(embedding, expr, 30)
     return {
         "records": data,
     }

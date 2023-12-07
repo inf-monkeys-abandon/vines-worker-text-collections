@@ -30,6 +30,9 @@ def save_vector_from_text(name):
         res = milvus_client.insert_vector_from_file(embedding_model, file_url, metadata)
     else:
         raise ServerException("非法的请求参数，请传入 text 或者 fileUrl")
+
+    CollectionTable.add_metadata_fields_if_not_exists(team_id, name, metadata.keys())
+
     return {
         "insert_count": res.insert_count,
         "delete_count": res.delete_count,
@@ -56,11 +59,12 @@ def query_vector(name):
     }
 
 
-@app.post("/api/vector/search")
-def search_vector():
+@app.post("/api/vector/collections/<string:name>/search")
+def search_vector(name):
+    team_id = request.team_id
     data = request.json
-    name = data.get('name')
-    embedding_model = data.get('embedding_model')
+    collection = CollectionTable.find_by_name(team_id, name)
+    embedding_model = collection['embeddingModel']
     expr = data.get('expr')
     q = data.get('q')
     embedding = generate_embedding_of_model(embedding_model, q)
@@ -87,9 +91,11 @@ def delete_record(name, pk):
 @app.put("/api/vector/collections/<string:name>/records/<string:pk>")
 def upsert_record(name, pk):
     data = request.json
+    team_id = request.team_id
     text = data.get('text')
     metadata = data.get('metadata')
-    embedding_model = data.get('embedding_model')
+    collection = CollectionTable.find_by_name(team_id, name)
+    embedding_model = collection['embeddingModel']
     embedding = generate_embedding_of_model(embedding_model, [text])
     milvus_client = MilvusClient(
         collection_name=name

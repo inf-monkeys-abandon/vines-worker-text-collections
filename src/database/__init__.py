@@ -128,6 +128,36 @@ class CollectionTable:
             }
         )
 
+    @staticmethod
+    def add_metadata_fields_if_not_exists(team_id, coll_name, field_names):
+        coll = CollectionTable.find_by_name(team_id, coll_name)
+        fields_to_add = []
+        for field_name in field_names:
+            not_exist = len(list(filter(lambda x: x['name'] == field_name, coll['metadataFields']))) == 0
+            if not_exist:
+                fields_to_add.append(field_name)
+        if len(fields_to_add) == 0:
+            return
+        for field_name in fields_to_add:
+            COLLECTION_ENTITY.update_one(
+                {
+                    "teamId": team_id,
+                    "isDeleted": False,
+                    "name": coll_name
+                },
+                {
+                    "$push": {
+                        "metadataFields": {
+                            "name": field_name,
+                            "displayName": '',
+                            "description": '',
+                            "builtIn": False,
+                            "required": False,
+                        }
+                    }
+                }
+            )
+
 
 class AccountTable:
 

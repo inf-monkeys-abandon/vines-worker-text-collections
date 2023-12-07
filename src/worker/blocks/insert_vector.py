@@ -1,5 +1,6 @@
 from src.milvus import MilvusClient
 from src.utils import generate_embedding_of_model
+from src.database import CollectionTable
 
 BLOCK_NAME = 'insert_vector'
 BLOCK_DEF = {
@@ -97,7 +98,7 @@ BLOCK_DEF = {
 }
 
 
-def handler(task):
+def handler(task, workflow_context):
     workflow_id = task.get('workflowType')
     workflow_instance_id = task.get('workflowInstanceId')
     task_id = task.get('taskId')
@@ -106,24 +107,31 @@ def handler(task):
     input_data = task.get("inputData")
     print(input_data)
 
-    collection = input_data.get('collection')
+    collection_name = input_data.get('collection')
     inputType = input_data.get('inputType')
     text = input_data.get('text')
     fileUrl = input_data.get('fileUrl')
     metadata = input_data.get('metadata')
+    team_id = workflow_context.get('teamId')
+
+    collection = CollectionTable.find_by_name(team_id, name=collection_name)
+    if not collection:
+        raise Exception(f"数据集 {collection} 不存在")
 
     if metadata and isinstance(metadata, dict):
         metadata.update({
             "workflowId": workflow_id
         })
 
+    CollectionTable.add_metadata_fields_if_not_exists(team_id, collection_name, metadata.keys())
+
     milvus_client = MilvusClient(
-        collection_name=collection
+        collection_name=collection_name
     )
-    embedding_model = milvus_client.collection.description
+    embedding_model = collection.get('embeddingModel')
 
     if inputType == 'text':
-        embedding = generate_embedding_of_model(embedding_model, text)
+        embedding = generate_embedding_of_model(embedding_model, [text])
         res = milvus_client.insert_vectors([text], embedding, [metadata])
     elif inputType == 'fileUrl':
         res = milvus_client.insert_vector_from_file(embedding_model, fileUrl, metadata)

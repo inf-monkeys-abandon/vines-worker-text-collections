@@ -11,15 +11,27 @@ from .blocks.insert_vector import BLOCK_NAME as INSERT_VECTOR_BLOCK_NAME, BLOCK_
 SERVICE_REGISTRATION_URL = os.environ.get("SERVICE_REGISTRATION_URL")
 SERVICE_REGISTRATION_TOKEN = os.environ.get("SERVICE_REGISTRATION_TOKEN")
 CONDUCTOR_BASE_URL = os.environ.get("CONDUCTOR_BASE_URL")
+
+if not CONDUCTOR_BASE_URL:
+    raise Exception("请在环境变量中配置 CONDUCTOR_BASE_URL")
+
 CONDUCTOR_USERNAME = os.environ.get("CONDUCTOR_USERNAME")
 CONDUCTOR_PASSWORD = os.environ.get("CONDUCTOR_PASSWORD")
 WORKER_ID = os.environ.get("WORKER_ID")
+if not WORKER_ID:
+    raise Exception("请在环境变量中配置 WORKER_ID")
+
 CONDUCTOR_CLIENT_NAME_PREFIX = os.environ.get("CONDUCTOR_CLIENT_NAME_PREFIX", None)
+REDIS_URL = os.environ.get("REDIS_URL")
+
+if not REDIS_URL:
+    raise Exception("请在环境变量中配置 REDIS_URL")
 
 conductor_client = ConductorClient(
     service_registration_url=SERVICE_REGISTRATION_URL,
     service_registration_token=SERVICE_REGISTRATION_TOKEN,
     conductor_base_url=CONDUCTOR_BASE_URL,
+    redis_url=REDIS_URL,
     worker_id=WORKER_ID,
     worker_name_prefix=CONDUCTOR_CLIENT_NAME_PREFIX,
     authentication_settings={

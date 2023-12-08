@@ -7,4 +7,4 @@ unstructured
 unstructured[pdf]
 mongoengine
 shortid
-vines-worker-sdk=0.0.10
+vines-worker-sdk==0.0.10

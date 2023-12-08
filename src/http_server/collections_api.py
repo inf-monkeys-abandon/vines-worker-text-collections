@@ -4,7 +4,7 @@ from vines_worker_sdk.server.exceptions import ClientException
 from src.database import CollectionTable
 from src.milvus import create_milvus_collection, drop_milvus_collection
 from bson.json_util import dumps
-from src.utils import generate_short_id
+from src.utils import generate_short_id, get_dimension_by_embedding_model
 from .users_api import init_milvus_user_if_not_exists
 
 
@@ -15,15 +15,8 @@ def create_collection():
     logo = data.get('logo')
     name = data.get('name')
     embedding_model = data.get('embeddingModel')
-    description = data.get('description')
-
-    dimension_map = {
-        "BAAI/bge-base-zh-v1.5": 768
-    }
-    dimension = dimension_map.get(embedding_model)
-    if not dimension:
-        raise ClientException(f"不支持的 embedding 模型：{embedding_model}")
-
+    description = data.get('description', '')
+    dimension = get_dimension_by_embedding_model(embedding_model)
     conflict = CollectionTable.check_name_conflicts(name)
     if conflict:
         raise ClientException(f"唯一标志 {name} 已被占用，请换一个")

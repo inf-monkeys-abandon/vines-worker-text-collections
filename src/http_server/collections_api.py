@@ -5,6 +5,7 @@ from src.database import CollectionTable
 from src.milvus import create_milvus_collection, drop_milvus_collection
 from bson.json_util import dumps
 from src.utils import generate_short_id
+from .users_api import init_milvus_user_if_not_exists
 
 
 @app.post('/api/vector/collections')
@@ -29,6 +30,8 @@ def create_collection():
 
     user_id = request.user_id
     team_id = request.team_id
+
+    init_milvus_user_if_not_exists(team_id)
 
     # 在 milvus 中创建
     role_name = f"team_{team_id}"
@@ -122,6 +125,7 @@ def copy_collection(name):
     data = request.json
     team_id = data.get('team_id')
     user_id = data.get('user_id')
+    init_milvus_user_if_not_exists(team_id)
 
     # 在 milvus 中创建
     embedding_model = collection.get('embeddingModel')
@@ -140,7 +144,7 @@ def copy_collection(name):
     CollectionTable.insert_one(
         creator_user_id=user_id,
         team_id=team_id,
-        name=collection.new_collection_name,
+        name=new_collection_name,
         display_name=collection.get('displayName'),
         description=description,
         logo=collection.get('logo'),

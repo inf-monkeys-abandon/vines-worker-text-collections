@@ -68,7 +68,7 @@ BLOCK_DEF = {
         },
     ],
     "extra": {
-        "estimateTime": 3,
+        "estimateTime": 5,
     },
 }
 

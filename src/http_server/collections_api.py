@@ -4,6 +4,7 @@ from vines_worker_sdk.server.exceptions import ClientException
 from src.database import CollectionTable
 from src.milvus import create_milvus_collection, drop_milvus_collection
 from bson.json_util import dumps
+from src.utils import generate_short_id
 
 
 @app.post('/api/vector/collections')
@@ -34,6 +35,7 @@ def create_collection():
     create_milvus_collection(
         role_name,
         name,
+        description,
         embedding_model,
         dimension
     )
@@ -87,6 +89,66 @@ def update_collection(name):
     )
     return {
         "success": True
+    }
+
+
+@app.post("/api/vector/collections/<string:name>/authorize")
+def authorize_collection(name):
+    if not request.is_super_user:
+        raise Exception("无权限操作")
+    collection = CollectionTable.find_by_name_without_team(name)
+    if not collection:
+        raise ClientException("数据集不存在")
+
+    data = request.json
+    team_id = data.get('team_id')
+    CollectionTable.authorize_target(
+        name,
+        team_id,
+    )
+    return {
+        "success": True
+    }
+
+
+@app.post("/api/vector/collections/<string:name>/copy")
+def copy_collection(name):
+    if not request.is_super_user:
+        raise Exception("无权限操作")
+    collection = CollectionTable.find_by_name_without_team(name)
+    if not collection:
+        raise ClientException("数据集不存在")
+
+    data = request.json
+    team_id = data.get('team_id')
+    user_id = data.get('user_id')
+
+    # 在 milvus 中创建
+    embedding_model = collection.get('embeddingModel')
+    dimension = collection.get('dimension')
+    new_collection_name = generate_short_id()
+    description = collection.get('description')
+    role_name = f"team_{team_id}"
+    create_milvus_collection(
+        role_name,
+        new_collection_name,
+        description,
+        embedding_model,
+        dimension
+    )
+
+    CollectionTable.insert_one(
+        creator_user_id=user_id,
+        team_id=team_id,
+        name=collection.new_collection_name,
+        display_name=collection.get('displayName'),
+        description=description,
+        logo=collection.get('logo'),
+        embedding_model=embedding_model,
+        dimension=dimension
+    )
+    return {
+        "name": new_collection_name
     }
 
 

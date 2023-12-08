@@ -66,7 +66,8 @@ class CollectionTable:
                     "builtIn": True,
                     "required": False,
                 },
-            ]
+            ],
+            "authorizedTargets": []
         })
 
     @staticmethod
@@ -80,14 +81,47 @@ class CollectionTable:
     @staticmethod
     def find_by_team(team_id):
         return COLLECTION_ENTITY.find({
-            "teamId": team_id,
-            "isDeleted": False
+            "$or": [
+                {
+                    "teamId": team_id,
+                    "isDeleted": False,
+                },
+                {
+                    "authorizedTargets": {
+                        "$elemMatch": {
+                            "targetType": "TEAM",
+                            "targetId": team_id
+                        }
+                    }
+                }
+            ]
         }).sort("_id", -1)
 
     @staticmethod
     def find_by_name(team_id, name):
         return COLLECTION_ENTITY.find_one({
-            "teamId": team_id,
+            "$or": [
+                {
+                    "isDeleted": False,
+                    "name": name,
+                    "teamId": team_id,
+                },
+                {
+                    "isDeleted": False,
+                    "name": name,
+                    "authorizedTargets": {
+                        "$elemMatch": {
+                            "targetType": "TEAM",
+                            "targetId": team_id
+                        }
+                    }
+                }
+            ]
+        })
+
+    @staticmethod
+    def find_by_name_without_team(name):
+        return COLLECTION_ENTITY.find_one({
             "isDeleted": False,
             "name": name
         })
@@ -124,6 +158,23 @@ class CollectionTable:
             {
                 "$set": {
                     "isDeleted": True
+                }
+            }
+        )
+
+    @staticmethod
+    def authorize_target(name: str, team_id: str):
+        return COLLECTION_ENTITY.update_one(
+            {
+                "isDeleted": False,
+                "name": name
+            },
+            {
+                "$push": {
+                    "authorizedTargets": {
+                        "targetType": "TEAM",
+                        "targetId": team_id
+                    }
                 }
             }
         )

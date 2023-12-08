@@ -1,3 +1,4 @@
+from src.database import CollectionTable
 from src.milvus import MilvusClient
 from src.utils import generate_embedding_of_model
 
@@ -72,23 +73,27 @@ BLOCK_DEF = {
 }
 
 
-def handler(task):
+def handler(task, workflow_context):
     workflow_instance_id = task.get('workflowInstanceId')
     task_id = task.get('taskId')
     print(f"开始执行任务：workflow_instance_id={workflow_instance_id}, task_id={task_id}")
 
     input_data = task.get("inputData")
     print(input_data)
-
-    collection = input_data.get('collection')
+    team_id = workflow_context.get('teamId')
+    collection_name = input_data.get('collection')
     question = input_data.get('question')
     expr = input_data.get('expr')
     top_k = input_data.get('topK')
 
+    collection = CollectionTable.find_by_name(team_id, name=collection_name)
+    if not collection:
+        raise Exception(f"数据集 {collection_name} 不存在或未授权")
+
     milvus_client = MilvusClient(
-        collection_name=collection
+        collection_name=collection_name
     )
-    embedding_model = milvus_client.collection.description
+    embedding_model = collection.get('embeddingModel')
     embedding = generate_embedding_of_model(embedding_model, question)
 
     data = milvus_client.search_vector(embedding, expr, top_k)

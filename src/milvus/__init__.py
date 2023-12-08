@@ -31,14 +31,14 @@ connections.connect(
 )
 
 
-def create_milvus_collection(role_name: str, name: str, embedding_model: str, dimension: int):
+def create_milvus_collection(role_name: str, name: str, description: str, embedding_model: str, dimension: int):
     fields = [
         FieldSchema(name="pk", dtype=DataType.VARCHAR, is_primary=True, auto_id=False, max_length=100),
         FieldSchema(name="page_content", dtype=DataType.VARCHAR, max_length=65535),
         FieldSchema(name="embeddings", dtype=DataType.FLOAT_VECTOR, dim=dimension),
         FieldSchema(name="metadata", dtype=DataType.JSON),
     ]
-    schema = CollectionSchema(fields, embedding_model)
+    schema = CollectionSchema(fields, description)
     coll = Collection(name, schema, consistency_level="Strong")
     index = {
         "index_type": "IVF_FLAT",

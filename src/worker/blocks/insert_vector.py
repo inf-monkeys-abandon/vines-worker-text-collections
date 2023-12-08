@@ -116,7 +116,7 @@ def handler(task, workflow_context):
 
     collection = CollectionTable.find_by_name(team_id, name=collection_name)
     if not collection:
-        raise Exception(f"数据集 {collection} 不存在")
+        raise Exception(f"数据集 {collection_name} 不存在或未授权")
 
     if metadata and isinstance(metadata, dict):
         metadata.update({

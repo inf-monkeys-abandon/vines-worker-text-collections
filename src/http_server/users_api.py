@@ -2,24 +2,17 @@ from .server import app
 from flask import request
 from src.milvus import create_milvus_user
 from src.database import AccountTable
-from shortid import ShortId
-from random import choice
-from string import ascii_letters
+
 from bson.json_util import dumps
-
-sid = ShortId()
-
-
-def generate_random_password():
-    return ''.join(choice(ascii_letters) for i in range(12))
+from src.utils import generate_short_id, generate_random_string
 
 
 @app.post("/api/vector/init-milvus-user")
 def init_milvus_user():
     team_id = request.team_id
     role_name = f"team_{team_id}"
-    username = f"vines_{sid.generate()}"
-    password = f"vector_{generate_random_password()}"
+    username = f"vines_{generate_short_id()}"
+    password = f"vector_{generate_random_string(32)}"
 
     account = AccountTable.find_by_team_id(team_id)
     exist = bool(account)

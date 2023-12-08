@@ -10,6 +10,7 @@ client = MongoClient(MONGO_URL)
 db = client.vines
 COLLECTION_ENTITY = db[MONGO_COLLECTION_PREFIX + "vector-collections"]
 ACCOUNT_ENTITY = db[MONGO_COLLECTION_PREFIX + "vector-accounts"]
+FILE_PROCESS_PROGRESS_ENTITY = db[MONGO_COLLECTION_PREFIX + "vector-file-process-progress"]
 
 
 class CollectionTable:
@@ -239,3 +240,73 @@ class AccountTable:
         if entity:
             return entity
         return AccountTable.create_user(team_id, role_name, username, password)
+
+
+class FileProcessProgressTable:
+
+    @staticmethod
+    def list_tasks(team_id, collection_name):
+        return FILE_PROCESS_PROGRESS_ENTITY.find(
+            {
+                "teamId": team_id,
+                "collectionName": collection_name
+            }
+        ).sort("_id", -1)
+
+    @staticmethod
+    def get_task(team_id, collection_name, task_id):
+        return FILE_PROCESS_PROGRESS_ENTITY.find_one({
+            "teamId": team_id,
+            "collectionName": collection_name,
+            "taskId": task_id,
+            "isDeleted": False,
+        })
+
+    @staticmethod
+    def create_task(team_id, collection_name, task_id):
+        timestamp = int(time.time())
+        FILE_PROCESS_PROGRESS_ENTITY.insert_one({
+            "createdTimestamp": timestamp,
+            "updatedTimestamp": timestamp,
+            "isDeleted": False,
+            "teamId": team_id,
+            "collectionName": collection_name,
+            "taskId": task_id,
+            "events": []
+        })
+
+    @staticmethod
+    def mark_task_failed(task_id, message):
+        FILE_PROCESS_PROGRESS_ENTITY.update_one(
+            {
+                "taskId": task_id
+            },
+            {
+                "$push": {
+                    "events": {
+                        "message": message,
+                        "timestamp": int(time.time()),
+                        "status": "FAILED"
+                    }
+                }
+            }
+        )
+
+    @staticmethod
+    def update_progress(task_id, progress, message):
+        status = "INPROGRESS" if progress < 1 else "COMPLETED"
+        FILE_PROCESS_PROGRESS_ENTITY.update_one(
+            {
+                "taskId": task_id
+            },
+            {
+                "$push": {
+                    "events": {
+                        "progress": progress,
+                        "message": message,
+                        "timestamp": int(time.time()),
+                        "status": status
+                    }
+                }
+            }
+        )

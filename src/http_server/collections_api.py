@@ -1,7 +1,7 @@
 from .server import app
 from flask import request
 from vines_worker_sdk.server.exceptions import ClientException
-from src.database import CollectionTable
+from src.database import CollectionTable, FileProcessProgressTable
 from src.milvus import create_milvus_collection, drop_milvus_collection
 from bson.json_util import dumps
 from src.utils import generate_short_id, get_dimension_by_embedding_model
@@ -158,3 +158,24 @@ def delete_collection(name):
     return {
         "success": True
     }
+
+
+@app.get("/api/vector/collections/<string:name>/tasks")
+def list_tasks(name):
+    team_id = request.team_id
+    data = FileProcessProgressTable.list_tasks(
+        team_id=team_id,
+        collection_name=name
+    )
+    return dumps(data)
+
+
+@app.get("/api/vector/collections/<string:name>/tasks/<string:task_id>")
+def get_task_detail(name, task_id):
+    team_id = request.team_id
+    data = FileProcessProgressTable.get_task(
+        team_id=team_id,
+        collection_name=name,
+        task_id=task_id
+    )
+    return dumps(data)

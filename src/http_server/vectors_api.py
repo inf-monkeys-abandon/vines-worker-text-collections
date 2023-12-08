@@ -2,8 +2,11 @@ from flask import request
 from src.milvus import MilvusClient
 from src.utils import generate_embedding_of_model
 from .server import app
-from src.database import CollectionTable
+from src.database import CollectionTable, FileProcessProgressTable
 from vines_worker_sdk.server.exceptions import ServerException
+import threading
+import uuid
+from bson.json_util import dumps
 
 
 @app.post("/api/vector/collections/<string:name>/records")
@@ -26,20 +29,37 @@ def save_vector_from_text(name):
     if text:
         embedding = generate_embedding_of_model(embedding_model, [text])
         res = milvus_client.insert_vectors([text], embedding, [metadata])
+        CollectionTable.add_metadata_fields_if_not_exists(team_id, name, metadata.keys())
+        return {
+            "insert_count": res.insert_count,
+            "delete_count": res.delete_count,
+            "upsert_count": res.upsert_count,
+            "success_count": res.succ_count,
+            "err_count": res.err_count
+        }
     elif file_url:
-        res = milvus_client.insert_vector_from_file(embedding_model, file_url, metadata)
+        task_id = str(uuid.uuid4())
+
+        FileProcessProgressTable.create_task(
+            team_id=team_id,
+            collection_name=name,
+            task_id=task_id
+        )
+
+        def import_document_thread_handler():
+            try:
+                milvus_client.insert_vector_from_file(embedding_model, file_url, metadata, task_id)
+                CollectionTable.add_metadata_fields_if_not_exists(team_id, name, metadata.keys())
+            except Exception as e:
+                FileProcessProgressTable.mark_task_failed(task_id=task_id, message=str(e))
+
+        thread = threading.Thread(target=import_document_thread_handler)
+        thread.start()
+        return {
+            "taskId": task_id
+        }
     else:
         raise ServerException("非法的请求参数，请传入 text 或者 fileUrl")
-
-    CollectionTable.add_metadata_fields_if_not_exists(team_id, name, metadata.keys())
-
-    return {
-        "insert_count": res.insert_count,
-        "delete_count": res.delete_count,
-        "upsert_count": res.upsert_count,
-        "success_count": res.succ_count,
-        "err_count": res.err_count
-    }
 
 
 @app.post("/api/vector/collections/<string:name>/query")

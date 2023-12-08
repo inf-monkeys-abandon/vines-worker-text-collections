@@ -1,6 +1,6 @@
 from src.milvus import MilvusClient
 from src.utils import generate_embedding_of_model
-from src.database import CollectionTable
+from src.database import CollectionTable, FileProcessProgressTable
 
 BLOCK_NAME = 'insert_vector'
 BLOCK_DEF = {
@@ -134,7 +134,16 @@ def handler(task, workflow_context):
         embedding = generate_embedding_of_model(embedding_model, [text])
         res = milvus_client.insert_vectors([text], embedding, [metadata])
     elif inputType == 'fileUrl':
-        res = milvus_client.insert_vector_from_file(embedding_model, fileUrl, metadata)
+        FileProcessProgressTable.create_task(
+            team_id=team_id,
+            collection_name=collection_name,
+            task_id=task_id
+        )
+        try:
+            res = milvus_client.insert_vector_from_file(embedding_model, fileUrl, metadata, task_id)
+        except Exception as e:
+            FileProcessProgressTable.mark_task_failed(task_id=task_id, message=str(e))
+            raise Exception(e)
     else:
         raise Exception("不合法的 inputType: ", inputType)
 

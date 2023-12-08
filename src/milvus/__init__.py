@@ -10,6 +10,7 @@ from vines_worker_sdk.utils.files import ensure_directory_exists
 from src.utils import generate_pk, generate_embedding_of_model
 from src.utils.document_loader import load_documents
 from src.oss import oss_client
+from src.database import FileProcessProgressTable
 
 import time
 
@@ -144,10 +145,12 @@ class MilvusClient:
         result = self.collection.upsert(data)
         return result
 
-    def insert_vector_from_file(self, embedding_model, file_url, metadata=None):
+    def insert_vector_from_file(self, embedding_model, file_url, metadata, task_id):
         folder = ensure_directory_exists("./download")
         file_path = oss_client.download_file(file_url, folder)
+        FileProcessProgressTable.update_progress(task_id, 0.1, "已下载文件到服务器")
         texts = load_documents(file_path)
+        FileProcessProgressTable.update_progress(task_id, 0.3, "已加载文件")
         metadatas = []
         for _ in texts:
             item = {
@@ -158,5 +161,7 @@ class MilvusClient:
             metadatas.append(item)
         texts = [text.page_content for text in texts]
         embeddings = generate_embedding_of_model(embedding_model, texts)
+        FileProcessProgressTable.update_progress(task_id, 0.8, "已生成向量，正在写入向量数据库")
         res = self.insert_vectors(texts, embeddings, metadatas)
+        FileProcessProgressTable.update_progress(task_id, 1.0, f"完成，共写入 {res.succ_count} 条向量数据")
         return res

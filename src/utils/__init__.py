@@ -20,8 +20,9 @@ def generate_random_string(length=12):
 
 
 def generate_embedding_of_model(model_name, q):
+    model_path = get_model_path_by_embedding_model(model_name)
     model = FlagModel(
-        model_name,
+        model_path,
         use_fp16=True
     )  # Setting use_fp16 to True speeds up computation with a slight performance degradation
     embeddings = model.encode(q)
@@ -34,28 +35,32 @@ SUPPORTED_EMBEDDING_MODELS = [
         "displayName": "BAAI/bge-base-zh-v1.5",
         "dimension": 768,
         "enabled": True,
-        "link": "https://huggingface.co/BAAI/bge-base-zh-v1.5"
+        "link": "https://huggingface.co/BAAI/bge-base-zh-v1.5",
+        "model_path": "/root/.cache/vector/vines-worker-milvus/models/bge-base-zh-v1.5"
     },
     {
         "name": "jinaai/jina-embeddings-v2-base-en",
         "displayName": "jinaai/jina-embeddings-v2-base-en",
         "dimension": 768,
         "enabled": True,
-        "link": "https://huggingface.co/jinaai/jina-embeddings-v2-base-en"
+        "link": "https://huggingface.co/jinaai/jina-embeddings-v2-base-en",
+        "model_path": "/root/.cache/vector/vines-worker-milvus/models/jina-embeddings-v2-base-en"
     },
     {
         "name": "jinaai/jina-embeddings-v2-small-en",
         "displayName": "jinaai/jina-embeddings-v2-small-en",
         "dimension": 768,
         "enabled": True,
-        "link": "https://huggingface.co/jinaai/jina-embeddings-v2-small-en"
+        "link": "https://huggingface.co/jinaai/jina-embeddings-v2-small-en",
+        "model_path": "/root/.cache/vector/vines-worker-milvus/models/jina-embeddings-v2-small-en"
     },
     {
         "name": "moka-ai/m3e-base",
         "displayName": "moka-ai/m3e-base",
         "dimension": 768,
         "enabled": True,
-        "link": "https://huggingface.co/moka-ai/m3e-base"
+        "link": "https://huggingface.co/moka-ai/m3e-base",
+        "model_path": "/root/.cache/vector/vines-worker-milvus/models/m3e-base"
     },
     {
         "name": "openai",
@@ -71,5 +76,13 @@ def get_dimension_by_embedding_model(embedding_model):
     for item in SUPPORTED_EMBEDDING_MODELS:
         if item['name'] == embedding_model:
             return item["dimension"]
+
+    raise Exception(f"不支持的 embedding 模型：{embedding_model}")
+
+
+def get_model_path_by_embedding_model(embedding_model):
+    for item in SUPPORTED_EMBEDDING_MODELS:
+        if item['name'] == embedding_model:
+            return item["model_path"]
 
     raise Exception(f"不支持的 embedding 模型：{embedding_model}")

@@ -66,6 +66,11 @@ BLOCK_DEF = {
                 },
             ],
         },
+        {
+            "name": "text",
+            "displayName": "所有搜索的结果组合的字符串",
+            "type": "string"
+        }
     ],
     "extra": {
         "estimateTime": 5,
@@ -98,6 +103,12 @@ def handler(task, workflow_context):
 
     data = milvus_client.search_vector(embedding, expr, top_k)
 
+    texts = [
+        item['page_content'] for item in data
+    ]
+    text = '\n'.join(texts)
+
     return {
-        "result": data
+        "result": data,
+        "text": text
     }

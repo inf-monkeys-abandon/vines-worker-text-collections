@@ -3,14 +3,12 @@ from src.milvus import MilvusClient
 from src.utils import generate_embedding_of_model
 from .server import app
 from src.database import CollectionTable, FileProcessProgressTable
-from vines_worker_sdk.server.exceptions import ServerException
+from vines_worker_sdk.server.exceptions import ServerException, ClientException
 import threading
 import uuid
-from bson.json_util import dumps
-
 
 @app.post("/api/vector/collections/<string:name>/records")
-def save_vector_from_text(name):
+def save_vector(name):
     team_id = request.team_id
     user_id = request.user_id
 
@@ -62,6 +60,26 @@ def save_vector_from_text(name):
         raise ServerException("非法的请求参数，请传入 text 或者 fileUrl")
 
 
+@app.post("/api/vector/collections/<string:name>/records/upsert")
+def upsert_vector_batch(name):
+    collection = CollectionTable.find_by_name_without_team(name)
+    if not collection:
+        raise ClientException(f"向量数据库 {name} 不存在")
+    embedding_model = collection.get('embeddingModel')
+    milvus_client = MilvusClient(
+        collection_name=name
+    )
+    list = request.json
+    pks = [item['pk'] for item in list]
+    texts = [item['text'] for item in list]
+    metadatas = [item['metadata'] for item in list]
+    embeddings = generate_embedding_of_model(embedding_model, texts)
+    result = milvus_client.upsert_record_batch(pks, texts, embeddings, metadatas)
+    return {
+        "upsert_count": result.upsert_count
+    }
+
+
 @app.post("/api/vector/collections/<string:name>/query")
 def query_vector(name):
     data = request.json
@@ -89,11 +107,12 @@ def search_vector(name):
     embedding_model = collection['embeddingModel']
     expr = data.get('expr')
     q = data.get('q')
+    limit = data.get('limit', 30)
     embedding = generate_embedding_of_model(embedding_model, q)
     milvus_client = MilvusClient(
         collection_name=name
     )
-    data = milvus_client.search_vector(embedding, expr, 30)
+    data = milvus_client.search_vector(embedding, expr, limit)
     return {
         "records": data,
     }

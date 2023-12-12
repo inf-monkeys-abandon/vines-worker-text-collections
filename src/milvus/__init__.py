@@ -145,6 +145,16 @@ class MilvusClient:
         result = self.collection.upsert(data)
         return result
 
+    def upsert_record_batch(self, pks, texts, embeddings, metadatas):
+        data = [
+            pks,
+            texts,
+            embeddings,
+            metadatas
+        ]
+        result = self.collection.upsert(data)
+        return result
+
     def insert_vector_from_file(self, embedding_model, file_url, metadata, task_id):
         folder = ensure_directory_exists("./download")
         file_path = oss_client.download_file(file_url, folder)

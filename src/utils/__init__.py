@@ -1,10 +1,13 @@
 import uuid
+import os
 from FlagEmbedding import FlagModel
 from random import choice
 from string import ascii_letters
 from shortid import ShortId
 
 sid = ShortId()
+
+ROOT_FOLDER = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
 
 
 def generate_pk():
@@ -22,7 +25,8 @@ def generate_random_string(length=12):
 def generate_embedding_of_model(model_name, q):
     model_path = get_model_path_by_embedding_model(model_name)
     model = FlagModel(
-        model_path,
+        # 如果本地有下载 model 使用本地的，否则在线下载
+        model_path if os.path.exists(model_path) else model_name,
         use_fp16=True
     )  # Setting use_fp16 to True speeds up computation with a slight performance degradation
     embeddings = model.encode(q)
@@ -36,7 +40,7 @@ SUPPORTED_EMBEDDING_MODELS = [
         "dimension": 768,
         "enabled": True,
         "link": "https://huggingface.co/BAAI/bge-base-zh-v1.5",
-        "model_path": "/root/.cache/vector/vines-worker-milvus/models/bge-base-zh-v1.5"
+        "model_path": os.path.join(ROOT_FOLDER, "models/bge-base-zh-v1.5")
     },
     {
         "name": "jinaai/jina-embeddings-v2-base-en",
@@ -44,7 +48,7 @@ SUPPORTED_EMBEDDING_MODELS = [
         "dimension": 768,
         "enabled": True,
         "link": "https://huggingface.co/jinaai/jina-embeddings-v2-base-en",
-        "model_path": "/root/.cache/vector/vines-worker-milvus/models/jina-embeddings-v2-base-en"
+        "model_path": os.path.join(ROOT_FOLDER, "models/jina-embeddings-v2-base-en")
     },
     {
         "name": "jinaai/jina-embeddings-v2-small-en",
@@ -52,7 +56,7 @@ SUPPORTED_EMBEDDING_MODELS = [
         "dimension": 768,
         "enabled": True,
         "link": "https://huggingface.co/jinaai/jina-embeddings-v2-small-en",
-        "model_path": "/root/.cache/vector/vines-worker-milvus/models/jina-embeddings-v2-small-en"
+        "model_path": os.path.join(ROOT_FOLDER, "models/jina-embeddings-v2-small-en")
     },
     {
         "name": "moka-ai/m3e-base",
@@ -60,14 +64,14 @@ SUPPORTED_EMBEDDING_MODELS = [
         "dimension": 768,
         "enabled": True,
         "link": "https://huggingface.co/moka-ai/m3e-base",
-        "model_path": "/root/.cache/vector/vines-worker-milvus/models/m3e-base"
+        "model_path": os.path.join(ROOT_FOLDER, "models/m3e-base")
     },
     {
-        "name": "openai",
-        "displayName": "OpenAI Embeddings",
-        "dimension": 768,
+        "name": "text-embedding-ada-002",
+        "displayName": "text-embedding-ada-002 (openai)",
+        "dimension": 1536,
         "enabled": False,
-        "link": "openai.com"
+        "link": "https://openai.com"
     }
 ]
 

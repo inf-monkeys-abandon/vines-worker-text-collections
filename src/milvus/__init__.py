@@ -48,8 +48,8 @@ def create_milvus_collection(role_name: str, name: str, description: str, embedd
     }
     coll.create_index("embeddings", index)
 
-    role = Role(role_name)
-    role.grant("Collection", name, "*")
+    # role = Role(role_name)
+    # role.grant("Collection", name, "*")
 
 
 def drop_milvus_collection(name):

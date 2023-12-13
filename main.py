@@ -5,7 +5,7 @@ load_dotenv()
 
 from multiprocessing import Process
 from src.http_server import app
-# from src.worker import conductor_client
+from src.worker import conductor_client
 
 
 def start_http_server():
@@ -13,9 +13,6 @@ def start_http_server():
 
 
 if __name__ == '__main__':
-    # p = Process(target=start_http_server, args=())
-    # p.start()
-    print("start")
-    app.run(host='0.0.0.0', port=8899)
-
-    # conductor_client.start_polling()
+    p = Process(target=start_http_server, args=())
+    p.start()
+    conductor_client.start_polling()

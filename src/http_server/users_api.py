@@ -15,11 +15,12 @@ def init_milvus_user_if_not_exists(team_id):
     account = AccountTable.find_by_team_id(team_id)
     exist = bool(account)
     if not exist:
-        create_milvus_user(
-            role_name,
-            username,
-            password
-        )
+        # fix: role 数目有限制，先下掉
+        # create_milvus_user(
+        #     role_name,
+        #     username,
+        #     password
+        # )
         account = AccountTable.create_user(
             team_id=team_id,
             role_name=role_name,

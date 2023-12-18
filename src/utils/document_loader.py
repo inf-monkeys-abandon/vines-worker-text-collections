@@ -28,7 +28,7 @@ def load_single_document(file_path):
     return documents
 
 
-def load_documents(file_path: str):
+def load_documents(file_path: str, chunk_size = 2048):
     file_ext = file_path.split('.')[-1]
     documents = []
     if file_ext == 'zip':
@@ -54,7 +54,7 @@ def load_documents(file_path: str):
         documents = load_single_document(file_path)
         os.remove(file_path)
 
-    text_splitter = CharacterTextSplitter(chunk_size=2048, chunk_overlap=0)
+    text_splitter = CharacterTextSplitter(chunk_size=chunk_size, chunk_overlap=0)
     texts = text_splitter.split_documents(documents)
     print(f"使用 langchain 解析到 {len(texts)} 个 documents")
     return texts

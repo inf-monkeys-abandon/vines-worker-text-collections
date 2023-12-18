@@ -4,6 +4,7 @@ from FlagEmbedding import FlagModel
 from random import choice
 from string import ascii_letters
 from shortid import ShortId
+import torch
 
 sid = ShortId()
 
@@ -30,6 +31,7 @@ def generate_embedding_of_model(model_name, q):
         use_fp16=True
     )  # Setting use_fp16 to True speeds up computation with a slight performance degradation
     embeddings = model.encode(q)
+    torch.cuda.empty_cache()
     return embeddings
 
 

@@ -155,11 +155,11 @@ class MilvusClient:
         result = self.collection.upsert(data)
         return result
 
-    def insert_vector_from_file(self, embedding_model, file_url, metadata, task_id):
+    def insert_vector_from_file(self, embedding_model, file_url, metadata, task_id, chunk_size = 2048):
         folder = ensure_directory_exists("./download")
         file_path = oss_client.download_file(file_url, folder)
         FileProcessProgressTable.update_progress(task_id, 0.1, "已下载文件到服务器")
-        texts = load_documents(file_path)
+        texts = load_documents(file_path, chunk_size)
         FileProcessProgressTable.update_progress(task_id, 0.3, "已加载文件")
         metadatas = []
         for _ in texts:

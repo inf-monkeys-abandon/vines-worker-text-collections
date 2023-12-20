@@ -112,6 +112,10 @@ def handler(task, workflow_context):
     text = input_data.get('text')
     fileUrl = input_data.get('fileUrl')
     metadata = input_data.get('metadata')
+
+    if not metadata:
+        metadata = {}
+
     team_id = workflow_context.get('teamId')
 
     collection = CollectionTable.find_by_name(team_id, name=collection_name)

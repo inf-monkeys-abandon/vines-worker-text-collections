@@ -6,6 +6,7 @@ from src.database import CollectionTable, FileProcessProgressTable
 from vines_worker_sdk.server.exceptions import ServerException, ClientException
 import threading
 import uuid
+import traceback
 
 
 @app.post("/api/vector/collections/<string:name>/records")
@@ -39,6 +40,18 @@ def save_vector(name):
             "err_count": res.err_count,
         }
     elif file_url:
+        split = data.get('split', {})
+        params = split.get('params', {})
+
+        # json 文件
+        jqSchema = params.get('jqSchema', None)
+
+        # 非 json 文件
+        pre_process_rules = params.get('preProcessRules', [])
+        segmentParams = params.get('segmentParams', {})
+        chunk_overlap = segmentParams.get('segmentChunkOverlap', 10)
+        chunk_size = segmentParams.get('segmentMaxLength', 1000)
+        separator = segmentParams.get('segmentSymbol', "\n\n")
         task_id = str(uuid.uuid4())
 
         FileProcessProgressTable.create_task(
@@ -48,13 +61,19 @@ def save_vector(name):
         def import_document_handler():
             try:
                 res = milvus_client.insert_vector_from_file(
-                    embedding_model, file_url, metadata, task_id, chunk_size
+                    embedding_model, file_url, metadata, task_id,
+                    chunk_size=chunk_size,
+                    chunk_overlap=chunk_overlap,
+                    separator=separator,
+                    pre_process_rules=pre_process_rules,
+                    jqSchema=jqSchema
                 )
                 CollectionTable.add_metadata_fields_if_not_exists(
                     team_id, name, metadata.keys()
                 )
                 return res
             except Exception as e:
+                traceback.print_exc()
                 FileProcessProgressTable.mark_task_failed(
                     task_id=task_id, message=str(e)
                 )

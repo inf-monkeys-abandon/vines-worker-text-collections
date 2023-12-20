@@ -3,8 +3,10 @@ protobuf==3.20.0
 grpcio-tools
 pymilvus==2.3.3
 langchain
+pymupdf
 unstructured
 unstructured[pdf]
 mongoengine
 shortid
-vines-worker-sdk==0.0.11
+vines-worker-sdk==0.0.14
+jq

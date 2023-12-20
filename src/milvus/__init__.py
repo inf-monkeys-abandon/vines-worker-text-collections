@@ -155,11 +155,30 @@ class MilvusClient:
         result = self.collection.upsert(data)
         return result
 
-    def insert_vector_from_file(self, embedding_model, file_url, metadata, task_id, chunk_size = 2048):
+    def insert_vector_from_file(
+            self,
+            embedding_model,
+            file_url,
+            metadata,
+            task_id,
+            chunk_size=1000,
+            chunk_overlap=0,
+            separator='\n\n',
+            pre_process_rules=[],
+            jqSchema=None
+    ):
         folder = ensure_directory_exists("./download")
         file_path = oss_client.download_file(file_url, folder)
+        if not file_path:
+            raise Exception("下载文件失败")
         FileProcessProgressTable.update_progress(task_id, 0.1, "已下载文件到服务器")
-        texts = load_documents(file_path, chunk_size)
+        texts = load_documents(file_path, chunk_size=chunk_size, chunk_overlap=chunk_overlap, separator=separator,
+                               pre_process_rules=pre_process_rules,
+                               jqSchema=jqSchema
+                               )
+        if len(texts) == 0:
+            raise Exception("解析到的段落数为 0")
+
         FileProcessProgressTable.update_progress(task_id, 0.3, "已加载文件")
         metadatas = []
         for _ in texts:

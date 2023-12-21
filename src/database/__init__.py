@@ -3,19 +3,20 @@ import os
 
 from pymongo import MongoClient
 
-MONGO_COLLECTION_PREFIX = os.environ.get("MONGO_COLLECTION_PREFIX") or ""
 MONGO_URL = os.environ.get("MONGO_URL")
 
 client = MongoClient(MONGO_URL)
 db = client.vines
-COLLECTION_ENTITY = db[MONGO_COLLECTION_PREFIX + "vector-collections"]
-ACCOUNT_ENTITY = db[MONGO_COLLECTION_PREFIX + "vector-accounts"]
-FILE_PROCESS_PROGRESS_ENTITY = db[MONGO_COLLECTION_PREFIX + "vector-file-process-progress"]
 
 
 class CollectionTable:
-    @staticmethod
+
+    def __init__(self, app_id):
+        self.app_id = app_id
+        self.collection = db[self.app_id + "-" + "vector-collections"]
+
     def insert_one(
+            self,
             creator_user_id,
             team_id,
             name,
@@ -23,10 +24,12 @@ class CollectionTable:
             description,
             logo,
             embedding_model,
-            dimension
+            dimension,
+            index_type,
+            index_param
     ):
         timestamp = int(time.time())
-        return COLLECTION_ENTITY.insert_one({
+        return self.collection.insert_one({
             "createdTimestamp": timestamp,
             "updatedTimestamp": timestamp,
             "isDeleted": False,
@@ -38,6 +41,8 @@ class CollectionTable:
             "logo": logo,
             "embeddingModel": embedding_model,
             "dimension": dimension,
+            "indexType": index_type,
+            "indexParam": index_param,
             "metadataFields": [
                 {
                     "name": 'userId',
@@ -71,17 +76,15 @@ class CollectionTable:
             "authorizedTargets": []
         })
 
-    @staticmethod
-    def check_name_conflicts(name):
-        record = COLLECTION_ENTITY.find_one({
+    def check_name_conflicts(self, name):
+        record = self.collection.find_one({
             "name": name,
             "isDeleted": False
         })
         return bool(record)
 
-    @staticmethod
-    def find_by_team(team_id):
-        return COLLECTION_ENTITY.find({
+    def find_by_team(self, team_id):
+        return self.collection.find({
             "$or": [
                 {
                     "teamId": team_id,
@@ -98,9 +101,8 @@ class CollectionTable:
             ]
         }).sort("_id", -1)
 
-    @staticmethod
-    def find_by_name(team_id, name):
-        return COLLECTION_ENTITY.find_one({
+    def find_by_name(self, team_id, name):
+        return self.collection.find_one({
             "$or": [
                 {
                     "isDeleted": False,
@@ -120,15 +122,13 @@ class CollectionTable:
             ]
         })
 
-    @staticmethod
-    def find_by_name_without_team(name):
-        return COLLECTION_ENTITY.find_one({
+    def find_by_name_without_team(self, name):
+        return self.collection.find_one({
             "isDeleted": False,
             "name": name
         })
 
-    @staticmethod
-    def update_by_name(team_id, name, description=None, display_name=None, logo=None):
+    def update_by_name(self, team_id, name, description=None, display_name=None, logo=None, new_name=None):
         updates = {}
         if description:
             updates['description'] = description
@@ -136,8 +136,10 @@ class CollectionTable:
             updates['displayName'] = display_name
         if logo:
             updates['logo'] = logo
+        if new_name:
+            updates['name'] = new_name
         updates['updatedTimestamp'] = int(time.time())
-        return COLLECTION_ENTITY.update_one(
+        return self.collection.update_one(
             {
                 "teamId": team_id,
                 "isDeleted": False,
@@ -148,9 +150,8 @@ class CollectionTable:
             }
         )
 
-    @staticmethod
-    def delete_by_name(team_id, name):
-        return COLLECTION_ENTITY.update_one(
+    def delete_by_name(self, team_id, name):
+        return self.collection.update_one(
             {
                 "teamId": team_id,
                 "isDeleted": False,
@@ -163,9 +164,8 @@ class CollectionTable:
             }
         )
 
-    @staticmethod
-    def authorize_target(name: str, team_id: str):
-        return COLLECTION_ENTITY.update_one(
+    def authorize_target(self, name: str, team_id: str):
+        return self.collection.update_one(
             {
                 "isDeleted": False,
                 "name": name
@@ -180,9 +180,8 @@ class CollectionTable:
             }
         )
 
-    @staticmethod
-    def add_metadata_fields_if_not_exists(team_id, coll_name, field_names):
-        coll = CollectionTable.find_by_name(team_id, coll_name)
+    def add_metadata_fields_if_not_exists(self, team_id, coll_name, field_names):
+        coll = self.find_by_name(team_id, coll_name)
         fields_to_add = []
         for field_name in field_names:
             not_exist = len(list(filter(lambda x: x['name'] == field_name, coll['metadataFields']))) == 0
@@ -191,7 +190,7 @@ class CollectionTable:
         if len(fields_to_add) == 0:
             return
         for field_name in fields_to_add:
-            COLLECTION_ENTITY.update_one(
+            self.collection.update_one(
                 {
                     "teamId": team_id,
                     "isDeleted": False,
@@ -213,17 +212,19 @@ class CollectionTable:
 
 class AccountTable:
 
-    @staticmethod
-    def find_by_team_id(team_id):
-        return ACCOUNT_ENTITY.find_one({
+    def __init__(self, app_id):
+        self.app_id = app_id
+        self.collection = db[self.app_id + "-" + "vector-accounts"]
+
+    def find_by_team_id(self, team_id):
+        return self.collection.find_one({
             "teamId": team_id,
             "isDeleted": False,
         })
 
-    @staticmethod
-    def create_user(team_id, role_name, username, password):
+    def create_user(self, team_id, role_name, username, password):
         timestamp = int(time.time())
-        ACCOUNT_ENTITY.insert_one({
+        self.collection.insert_one({
             "createdTimestamp": timestamp,
             "updatedTimestamp": timestamp,
             "isDeleted": False,
@@ -232,40 +233,40 @@ class AccountTable:
             "username": username,
             "password": password
         })
-        return AccountTable.find_by_team_id(team_id)
+        return self.find_by_team_id(team_id)
 
-    @staticmethod
-    def find_or_create(team_id, role_name, username, password):
-        entity = AccountTable.find_by_team_id(team_id)
+    def find_or_create(self, team_id, role_name, username, password):
+        entity = self.find_by_team_id(team_id)
         if entity:
             return entity
-        return AccountTable.create_user(team_id, role_name, username, password)
+        return self.create_user(team_id, role_name, username, password)
 
 
 class FileProcessProgressTable:
 
-    @staticmethod
-    def list_tasks(team_id, collection_name):
-        return FILE_PROCESS_PROGRESS_ENTITY.find(
+    def __init__(self, app_id):
+        self.app_id = app_id
+        self.collection = db[self.app_id + "-" + "vector-file-process-progress"]
+
+    def list_tasks(self, team_id, collection_name):
+        return self.collection.find(
             {
                 "teamId": team_id,
                 "collectionName": collection_name
             }
         ).sort("_id", -1)
 
-    @staticmethod
-    def get_task(team_id, collection_name, task_id):
-        return FILE_PROCESS_PROGRESS_ENTITY.find_one({
+    def get_task(self, team_id, collection_name, task_id):
+        return self.collection.find_one({
             "teamId": team_id,
             "collectionName": collection_name,
             "taskId": task_id,
             "isDeleted": False,
         })
 
-    @staticmethod
-    def create_task(team_id, collection_name, task_id):
+    def create_task(self, team_id, collection_name, task_id):
         timestamp = int(time.time())
-        FILE_PROCESS_PROGRESS_ENTITY.insert_one({
+        self.collection.insert_one({
             "createdTimestamp": timestamp,
             "updatedTimestamp": timestamp,
             "isDeleted": False,
@@ -275,9 +276,8 @@ class FileProcessProgressTable:
             "events": []
         })
 
-    @staticmethod
-    def mark_task_failed(task_id, message):
-        FILE_PROCESS_PROGRESS_ENTITY.update_one(
+    def mark_task_failed(self, task_id, message):
+        self.collection.update_one(
             {
                 "taskId": task_id
             },
@@ -292,10 +292,9 @@ class FileProcessProgressTable:
             }
         )
 
-    @staticmethod
-    def update_progress(task_id, progress, message):
+    def update_progress(self, task_id, progress, message):
         status = "INPROGRESS" if progress < 1 else "COMPLETED"
-        FILE_PROCESS_PROGRESS_ENTITY.update_one(
+        self.collection.update_one(
             {
                 "taskId": task_id
             },

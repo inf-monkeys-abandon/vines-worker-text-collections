@@ -8,5 +8,5 @@ unstructured
 unstructured[pdf]
 mongoengine
 shortid
-vines-worker-sdk==0.0.14
+vines-worker-sdk==0.0.15
 jq

@@ -117,8 +117,9 @@ def handler(task, workflow_context):
         metadata = {}
 
     team_id = workflow_context.get('teamId')
-
-    collection = CollectionTable.find_by_name(team_id, name=collection_name)
+    app_id = workflow_context.get('APP_ID')
+    table = CollectionTable(app_id=app_id)
+    collection = table.find_by_name(team_id, name=collection_name)
     if not collection:
         raise Exception(f"数据集 {collection_name} 不存在或未授权")
 
@@ -127,9 +128,10 @@ def handler(task, workflow_context):
             "workflowId": workflow_id
         })
 
-    CollectionTable.add_metadata_fields_if_not_exists(team_id, collection_name, metadata.keys())
+    table.add_metadata_fields_if_not_exists(team_id, collection_name, metadata.keys())
 
     milvus_client = MilvusClient(
+        app_id=app_id,
         collection_name=collection_name
     )
     embedding_model = collection.get('embeddingModel')
@@ -139,7 +141,8 @@ def handler(task, workflow_context):
         pk = generate_md5(text)
         res = milvus_client.upsert_record_batch([pk], [text], embedding, [metadata])
     elif inputType == 'fileUrl':
-        FileProcessProgressTable.create_task(
+        progress_table = FileProcessProgressTable(app_id=app_id)
+        progress_table.create_task(
             team_id=team_id,
             collection_name=collection_name,
             task_id=task_id
@@ -147,7 +150,7 @@ def handler(task, workflow_context):
         try:
             res = milvus_client.insert_vector_from_file(embedding_model, fileUrl, metadata, task_id)
         except Exception as e:
-            FileProcessProgressTable.mark_task_failed(task_id=task_id, message=str(e))
+            progress_table.mark_task_failed(task_id=task_id, message=str(e))
             raise Exception(e)
     else:
         raise Exception("不合法的 inputType: ", inputType)

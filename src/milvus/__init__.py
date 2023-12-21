@@ -32,7 +32,15 @@ connections.connect(
 )
 
 
-def create_milvus_collection(role_name: str, name: str, description: str, embedding_model: str, dimension: int):
+def calculate_max_m(dim):
+    for m in range(dim, 0, -1):
+        if dim % m == 0 and m != dim:
+            return m
+
+
+def create_milvus_collection(app_id: str, name: str, index_type: str, index_param: dict, description: str,
+                             dimension: int):
+    name = app_id + "_" + name
     fields = [
         FieldSchema(name="pk", dtype=DataType.VARCHAR, is_primary=True, auto_id=False, max_length=100),
         FieldSchema(name="page_content", dtype=DataType.VARCHAR, max_length=65535),
@@ -42,17 +50,17 @@ def create_milvus_collection(role_name: str, name: str, description: str, embedd
     schema = CollectionSchema(fields, description)
     coll = Collection(name, schema, consistency_level="Strong")
     index = {
-        "index_type": "IVF_FLAT",
-        "metric_type": "L2",
-        "params": {"nlist": 128},
+        "index_type": index_type,
     }
+    index.update(index_param)
     coll.create_index("embeddings", index)
 
     # role = Role(role_name)
     # role.grant("Collection", name, "*")
 
 
-def drop_milvus_collection(name):
+def drop_milvus_collection(app_id, name):
+    name = app_id + "_" + name
     coll = Collection(name, consistency_level="Strong")
     coll.drop()
 
@@ -68,11 +76,18 @@ def create_milvus_user(role_name, username, password):
     role.add_user(username)
 
 
+def rename_collection(app_id, old_collection_name, new_collection_name):
+    old_collection_name = app_id + "_" + old_collection_name
+    new_collection_name = app_id + "_" + new_collection_name
+    utility.rename_collection(old_collection_name=old_collection_name, new_collection_name=new_collection_name)
+
+
 class MilvusClient:
-    def __init__(self, collection_name: str):
-        self.name = collection_name
+    def __init__(self, app_id, collection_name: str):
+        self.app_id = app_id
+        self.name = app_id + "_" + collection_name
         self.collection = Collection(
-            collection_name,
+            self.name,
             consistency_level="Strong"
         )
         self.output_fields = [
@@ -80,22 +95,30 @@ class MilvusClient:
             'page_content',
             'metadata'
         ]
-        
+
     def __load_collection(self):
-        start = int(time.time())
+        start = time.time()
         print(f"Start to load collection: {self.name}")
         self.collection.load()
-        end = int(time.time())
-        print(f"Load collection success: {self.name}, takes {end-start} ms")
+        end = time.time()
+        print(f"Load collection success: {self.name}, takes {(end - start) * 1000} ms")
+
+    def release_collection(self):
+        start = time.time()
+        print(f"Start to release collection: {self.name}")
+        self.collection.release()
+        end = time.time()
+        print(f"Release collection success: {self.name}, takes {(end - start) * 1000} ms")
 
     def query_vector(self, expr, limit, offset):
         self.__load_collection()
-        return self.collection.query(
+        result = self.collection.query(
             expr=expr,
             output_fields=self.output_fields,
             limit=limit,
             offset=offset
         )
+        return result
 
     def search_vector(self, embedding, expr, limit):
         self.__load_collection()
@@ -166,7 +189,8 @@ class MilvusClient:
         file_path = oss_client.download_file(file_url, folder)
         if not file_path:
             raise Exception("下载文件失败")
-        FileProcessProgressTable.update_progress(task_id, 0.1, "已下载文件到服务器")
+        progress_table = FileProcessProgressTable(app_id=self.app_id)
+        progress_table.update_progress(task_id, 0.1, "已下载文件到服务器")
         texts = load_documents(file_path, chunk_size=chunk_size, chunk_overlap=chunk_overlap, separator=separator,
                                pre_process_rules=pre_process_rules,
                                jqSchema=jqSchema
@@ -174,7 +198,7 @@ class MilvusClient:
         if len(texts) == 0:
             raise Exception("解析到的段落数为 0")
 
-        FileProcessProgressTable.update_progress(task_id, 0.3, "已加载文件")
+        progress_table.update_progress(task_id, 0.3, "已加载文件")
         metadatas = []
         for _ in texts:
             item = {
@@ -188,7 +212,7 @@ class MilvusClient:
             generate_md5(text) for text in texts
         ]
         embeddings = generate_embedding_of_model(embedding_model, texts)
-        FileProcessProgressTable.update_progress(task_id, 0.8, "已生成向量，正在写入向量数据库")
+        progress_table.update_progress(task_id, 0.8, "已生成向量，正在写入向量数据库")
         res = self.upsert_record_batch(pks, texts, embeddings, metadatas)
-        FileProcessProgressTable.update_progress(task_id, 1.0, f"完成，共写入 {res.succ_count} 条向量数据")
+        progress_table.update_progress(task_id, 1.0, f"完成，共写入 {res.succ_count} 条向量数据")
         return res

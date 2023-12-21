@@ -91,11 +91,14 @@ def handler(task, workflow_context):
     expr = input_data.get('expr')
     top_k = input_data.get('topK')
 
-    collection = CollectionTable.find_by_name(team_id, name=collection_name)
+    app_id = workflow_context.get('APP_ID')
+    table = CollectionTable(app_id=app_id)
+    collection = table.find_by_name(team_id, name=collection_name)
     if not collection:
         raise Exception(f"数据集 {collection_name} 不存在或未授权")
 
     milvus_client = MilvusClient(
+        app_id=app_id,
         collection_name=collection_name
     )
     embedding_model = collection.get('embeddingModel')

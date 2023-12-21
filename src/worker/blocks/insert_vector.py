@@ -98,7 +98,7 @@ BLOCK_DEF = {
 }
 
 
-def handler(task, workflow_context):
+def handler(task, workflow_context, credential_data=None):
     workflow_id = task.get('workflowType')
     workflow_instance_id = task.get('workflowInstanceId')
     task_id = task.get('taskId')

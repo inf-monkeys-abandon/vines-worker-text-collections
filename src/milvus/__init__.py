@@ -7,7 +7,7 @@ from pymilvus import (
     Role
 )
 from vines_worker_sdk.utils.files import ensure_directory_exists
-from src.utils import generate_pk, generate_embedding_of_model
+from src.utils import generate_embedding_of_model, generate_md5
 from src.utils.document_loader import load_documents
 from src.oss import oss_client
 from src.database import FileProcessProgressTable
@@ -81,23 +81,6 @@ class MilvusClient:
             'metadata'
         ]
 
-    def insert_vectors(self, page_contents, embeddings, metadatas):
-        pks = [
-            generate_pk() for _ in page_contents
-        ]
-
-        for metadata in metadatas:
-            if not metadata.get('createdAt'):
-                metadata['createdAt'] = int(time.time())
-
-        res = self.collection.insert([
-            pks,
-            page_contents,
-            embeddings,
-            metadatas
-        ])
-        return res
-
     def query_vector(self, expr, limit, offset):
         return self.collection.query(
             expr=expr,
@@ -146,6 +129,9 @@ class MilvusClient:
         return result
 
     def upsert_record_batch(self, pks, texts, embeddings, metadatas):
+        for metadata in metadatas:
+            if not metadata.get('createdAt'):
+                metadata['createdAt'] = int(time.time())
         data = [
             pks,
             texts,
@@ -189,8 +175,11 @@ class MilvusClient:
                 item.update(metadata)
             metadatas.append(item)
         texts = [text.page_content for text in texts]
+        pks = [
+            generate_md5(text) for text in texts
+        ]
         embeddings = generate_embedding_of_model(embedding_model, texts)
         FileProcessProgressTable.update_progress(task_id, 0.8, "已生成向量，正在写入向量数据库")
-        res = self.insert_vectors(texts, embeddings, metadatas)
+        res = self.upsert_record_batch(pks, texts, embeddings, metadatas)
         FileProcessProgressTable.update_progress(task_id, 1.0, f"完成，共写入 {res.succ_count} 条向量数据")
         return res

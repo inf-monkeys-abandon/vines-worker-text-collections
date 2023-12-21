@@ -6,6 +6,7 @@ from string import ascii_letters
 from shortid import ShortId
 import torch
 import re
+import hashlib
 
 sid = ShortId()
 
@@ -22,6 +23,10 @@ def generate_short_id():
 
 def generate_random_string(length=12):
     return ''.join(choice(ascii_letters) for i in range(length))
+
+
+def generate_md5(string: str):
+    return hashlib.md5(string.encode('utf-8')).hexdigest()
 
 
 def generate_embedding_of_model(model_name, q):

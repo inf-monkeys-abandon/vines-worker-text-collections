@@ -1,5 +1,5 @@
 from src.milvus import MilvusClient
-from src.utils import generate_embedding_of_model
+from src.utils import generate_embedding_of_model, generate_md5
 from src.database import CollectionTable, FileProcessProgressTable
 
 BLOCK_NAME = 'insert_vector'
@@ -136,7 +136,8 @@ def handler(task, workflow_context):
 
     if inputType == 'text':
         embedding = generate_embedding_of_model(embedding_model, [text])
-        res = milvus_client.insert_vectors([text], embedding, [metadata])
+        pk = generate_md5(text)
+        res = milvus_client.upsert_record_batch([pk], [text], embedding, [metadata])
     elif inputType == 'fileUrl':
         FileProcessProgressTable.create_task(
             team_id=team_id,

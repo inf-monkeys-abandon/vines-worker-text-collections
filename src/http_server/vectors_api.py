@@ -1,6 +1,6 @@
 from flask import request
 from src.milvus import MilvusClient
-from src.utils import generate_embedding_of_model
+from src.utils import generate_embedding_of_model, generate_md5
 from .server import app
 from src.database import CollectionTable, FileProcessProgressTable
 from vines_worker_sdk.server.exceptions import ServerException, ClientException
@@ -28,7 +28,8 @@ def save_vector(name):
     milvus_client = MilvusClient(collection_name=name)
     if text:
         embedding = generate_embedding_of_model(embedding_model, [text])
-        res = milvus_client.insert_vectors([text], embedding, [metadata])
+        pk = generate_md5(text)
+        res = milvus_client.upsert_record_batch([pk], [text], embedding, [metadata])
         CollectionTable.add_metadata_fields_if_not_exists(
             team_id, name, metadata.keys()
         )

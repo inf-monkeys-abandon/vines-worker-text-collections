@@ -7,10 +7,10 @@ BLOCK_NAME = 'text_to_embedding'
 BLOCK_DEF = {
     "type": "SIMPLE",
     "name": BLOCK_NAME,
-    "categories": ['modelEnhance'],
-    "displayName": '文本转向量数据',
+    "categories": ['query', 'text'],
+    "displayName": '文本向量化',
     "description": '文本转向量数据',
-    "icon": 'emoji:💽:#c5b1e1',
+    "icon": 'emoji:💿:#e58c3a',
     "input": [
         {
             "displayName": '文本',

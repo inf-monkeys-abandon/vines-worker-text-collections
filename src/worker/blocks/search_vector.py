@@ -6,10 +6,10 @@ BLOCK_NAME = 'search_vector'
 BLOCK_DEF = {
     "type": "SIMPLE",
     "name": BLOCK_NAME,
-    "categories": ['modelEnhance'],
-    "displayName": '搜索向量数据',
-    "description": '根据提供的文本对向量数据库进行相似性查找',
-    "icon": 'emoji:💽:#c5b1e1',
+    "categories": ['query'],
+    "displayName": '搜索文本数据',
+    "description": '根据提供的文本对进行相似性搜索',
+    "icon": 'emoji:💿:#e58c3a',
     "input": [
         {
             "displayName": '向量数据库',

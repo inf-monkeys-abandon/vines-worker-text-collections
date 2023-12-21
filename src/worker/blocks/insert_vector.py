@@ -6,10 +6,10 @@ BLOCK_NAME = 'insert_vector'
 BLOCK_DEF = {
     "type": "SIMPLE",
     "name": BLOCK_NAME,
-    "categories": ['modelEnhance'],
-    "displayName": '写入向量数据',
-    "description": '在向量数据库中写入向量数据',
-    "icon": 'emoji:💽:#c5b1e1',
+    "categories": ['query', 'db'],
+    "displayName": '写入文本数据',
+    "description": '写入文本数据到向量数据库',
+    "icon": 'emoji:💿:#e58c3a',
     "input": [
         {
             "displayName": '向量数据库',

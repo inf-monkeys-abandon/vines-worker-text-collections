@@ -102,7 +102,8 @@ def handler(task, workflow_context, credential_data=None):
     workflow_id = task.get('workflowType')
     workflow_instance_id = task.get('workflowInstanceId')
     task_id = task.get('taskId')
-    print(f"开始执行任务：workflow_id={workflow_id}, workflow_instance_id={workflow_instance_id}, task_id={task_id}")
+    task_type = task.get('taskType')
+    print(f"开始执行任务：workflow_id={workflow_id}, workflow_instance_id={workflow_instance_id}, task_id={task_id} task_type={task_type}")
 
     input_data = task.get("inputData")
     print(input_data)

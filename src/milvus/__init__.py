@@ -70,18 +70,26 @@ def create_milvus_user(role_name, username, password):
 
 class MilvusClient:
     def __init__(self, collection_name: str):
+        self.name = collection_name
         self.collection = Collection(
             collection_name,
             consistency_level="Strong"
         )
-        self.collection.load()
         self.output_fields = [
             'pk',
             'page_content',
             'metadata'
         ]
+        
+    def __load_collection(self):
+        start = int(time.time())
+        print(f"Start to load collection: {self.name}")
+        self.collection.load()
+        end = int(time.time())
+        print(f"Load collection success: {self.name}, takes {end-start} ms")
 
     def query_vector(self, expr, limit, offset):
+        self.__load_collection()
         return self.collection.query(
             expr=expr,
             output_fields=self.output_fields,
@@ -90,6 +98,7 @@ class MilvusClient:
         )
 
     def search_vector(self, embedding, expr, limit):
+        self.__load_collection()
         search_params = {"metric_type": "L2", "params": {"nprobe": 10}}
         result = self.collection.search(
             data=[embedding],

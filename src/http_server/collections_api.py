@@ -1,11 +1,15 @@
+import json
+
 from .server import app
 from flask import request
 from vines_worker_sdk.server.exceptions import ClientException
 from src.database import CollectionTable, FileProcessProgressTable
-from src.milvus import create_milvus_collection, drop_milvus_collection, rename_collection
+from src.milvus import create_milvus_collection, drop_milvus_collection, rename_collection, get_entity_count_batch, \
+    get_entity_count
 from bson.json_util import dumps
 from src.utils import generate_short_id, get_dimension_by_embedding_model, generate_random_string
 from .users_api import init_milvus_user_if_not_exists
+import traceback
 
 
 @app.post('/api/vector/collections')
@@ -72,7 +76,10 @@ def list_collections():
         app_id=app_id
     )
     data = table.find_by_team(team_id=team_id)
-    return dumps(data)
+    data = json.loads(dumps(data))
+    for item in data:
+        item['entityCount'] = get_entity_count(app_id, item['name'])
+    return data
 
 
 @app.get("/api/vector/collections/<string:name>")

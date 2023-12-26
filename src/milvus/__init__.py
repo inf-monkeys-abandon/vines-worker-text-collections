@@ -65,6 +65,21 @@ def drop_milvus_collection(app_id, name):
     coll.drop()
 
 
+def get_entity_count_batch(app_id, name_list):
+    result = []
+    for name in name_list:
+        name = app_id + "_" + name
+        collection = Collection(name, consistency_level="Strong")
+        result.append(collection.num_entities)
+    return result
+
+
+def get_entity_count(app_id, name):
+    name = app_id + "_" + name
+    collection = Collection(name)
+    return collection.num_entities
+
+
 def create_milvus_user(role_name, username, password):
     role = Role(role_name)
     if not role.is_exist():

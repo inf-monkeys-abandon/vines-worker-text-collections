@@ -282,9 +282,6 @@ class FileProcessProgressTable:
         # 输出结果
         if result:
             total_count = result[0]['total_count']
-            print(f'Total number of documents with status COMPLETED: {total_count}')
-        else:
-            print('No documents with status COMPLETED found.')
         return total_count
 
     def list_tasks(self, team_id, collection_name):

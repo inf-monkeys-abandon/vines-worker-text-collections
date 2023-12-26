@@ -77,8 +77,10 @@ def list_collections():
     )
     data = table.find_by_team(team_id=team_id)
     data = json.loads(dumps(data))
+    progress_table = FileProcessProgressTable(app_id=app_id)
     for item in data:
         item['entityCount'] = get_entity_count(app_id, item['name'])
+        item['fileCount'] = progress_table.get_file_count(team_id, item['name'])
     return data
 
 

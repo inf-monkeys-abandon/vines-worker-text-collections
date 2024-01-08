@@ -4,9 +4,9 @@ from src.utils import generate_embedding_of_model, generate_md5
 from .server import app
 from src.database import CollectionTable, FileProcessProgressTable
 from vines_worker_sdk.server.exceptions import ServerException, ClientException
-import threading
 import uuid
 import traceback
+from src.queue import submit_task, PROCESS_FILE_QUEUE_NAME
 
 
 @app.post("/api/vector/collections/<string:name>/records")
@@ -62,10 +62,27 @@ def save_vector(name):
         progress_table.create_task(
             team_id=team_id, collection_name=name, task_id=task_id
         )
-
-        def import_document_handler():
+        if is_async:
+            submit_task(PROCESS_FILE_QUEUE_NAME, {
+                'app_id': app_id,
+                'team_id': team_id,
+                'user_id': user_id,
+                'collection_name': name,
+                'embedding_model': embedding_model,
+                'file_url': file_url,
+                'metadata': metadata,
+                'task_id': task_id,
+                'chunk_size': chunk_size,
+                'chunk_overlap': chunk_overlap,
+                'separator': separator,
+                'pre_process_rules': pre_process_rules,
+                'jqSchema': jqSchema
+            })
+            return {"taskId": task_id}
+        else:
             try:
                 res = milvus_client.insert_vector_from_file(
+                    team_id,
                     embedding_model, file_url, metadata, task_id,
                     chunk_size=chunk_size,
                     chunk_overlap=chunk_overlap,
@@ -76,20 +93,6 @@ def save_vector(name):
                 table.add_metadata_fields_if_not_exists(
                     team_id, name, metadata.keys()
                 )
-                return res
-            except Exception as e:
-                traceback.print_exc()
-                progress_table.mark_task_failed(
-                    task_id=task_id, message=str(e)
-                )
-
-        if is_async:
-            thread = threading.Thread(target=import_document_handler)
-            thread.start()
-            return {"taskId": task_id}
-        else:
-            res = import_document_handler()
-            if res:
                 return {
                     "insert_count": res.insert_count,
                     "delete_count": res.delete_count,
@@ -97,7 +100,11 @@ def save_vector(name):
                     "success_count": res.succ_count,
                     "err_count": res.err_count,
                 }
-            else:
+            except Exception as e:
+                traceback.print_exc()
+                progress_table.mark_task_failed(
+                    task_id=task_id, message=str(e)
+                )
                 return {
                     "success": False
                 }

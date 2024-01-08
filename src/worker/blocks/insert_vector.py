@@ -103,7 +103,8 @@ def handler(task, workflow_context, credential_data=None):
     workflow_instance_id = task.get('workflowInstanceId')
     task_id = task.get('taskId')
     task_type = task.get('taskType')
-    print(f"开始执行任务：workflow_id={workflow_id}, workflow_instance_id={workflow_instance_id}, task_id={task_id} task_type={task_type}")
+    print(
+        f"开始执行任务：workflow_id={workflow_id}, workflow_instance_id={workflow_instance_id}, task_id={task_id} task_type={task_type}")
 
     input_data = task.get("inputData")
     print(input_data)
@@ -149,7 +150,9 @@ def handler(task, workflow_context, credential_data=None):
             task_id=task_id
         )
         try:
-            res = milvus_client.insert_vector_from_file(embedding_model, fileUrl, metadata, task_id)
+            res = milvus_client.insert_vector_from_file(
+                team_id,
+                embedding_model, fileUrl, metadata, task_id)
         except Exception as e:
             progress_table.mark_task_failed(task_id=task_id, message=str(e))
             raise Exception(e)

@@ -20,6 +20,7 @@ def create_collection():
     logo = data.get('logo')
     name = generate_random_string()
     embedding_model = data.get('embeddingModel')
+    metadata_fields = data.get('metadataFields', None)
 
     index_type = data.get('indexType')
     if not index_type:
@@ -60,11 +61,13 @@ def create_collection():
         dimension=dimension,
         logo=logo,
         index_type=index_type,
-        index_param=index_param
+        index_param=index_param,
+        metadata_fields=metadata_fields
     )
 
     return {
-        "success": True
+        "success": True,
+        "name": name
     }
 
 

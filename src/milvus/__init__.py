@@ -10,7 +10,7 @@ from vines_worker_sdk.utils.files import ensure_directory_exists
 from src.utils import generate_embedding_of_model, generate_md5
 from src.utils.document_loader import load_documents
 from src.oss import oss_client
-from src.database import FileProcessProgressTable
+from src.database import FileProcessProgressTable, FileRecord
 
 import time
 
@@ -100,6 +100,7 @@ def rename_collection(app_id, old_collection_name, new_collection_name):
 class MilvusClient:
     def __init__(self, app_id, collection_name: str):
         self.app_id = app_id
+        self.collection_name = collection_name
         self.name = app_id + "_" + collection_name
         self.collection = Collection(
             self.name,
@@ -190,6 +191,7 @@ class MilvusClient:
 
     def insert_vector_from_file(
             self,
+            team_id,
             embedding_model,
             file_url,
             metadata,
@@ -230,4 +232,13 @@ class MilvusClient:
         progress_table.update_progress(task_id, 0.8, "已生成向量，正在写入向量数据库")
         res = self.upsert_record_batch(pks, texts, embeddings, metadatas)
         progress_table.update_progress(task_id, 1.0, f"完成，共写入 {res.succ_count} 条向量数据")
+
+        file_table = FileRecord(app_id=self.app_id)
+        file_table.create_record(team_id, self.collection_name, file_url, {
+            "chunkSize": chunk_size,
+            "chunkOverlap": chunk_overlap,
+            "separator": separator,
+            "preProcessRules": pre_process_rules,
+            "jqSchema": jqSchema
+        })
         return res

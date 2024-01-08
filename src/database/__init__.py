@@ -26,9 +26,40 @@ class CollectionTable:
             embedding_model,
             dimension,
             index_type,
-            index_param
+            index_param,
+            metadata_fields
     ):
         timestamp = int(time.time())
+        metadata_fields = metadata_fields or [
+            {
+                "name": 'userId',
+                "displayName": '创建此向量的用户 ID',
+                "description": '创建此向量的用户 ID',
+                "builtIn": True,
+                "required": True,
+            },
+            {
+                "name": 'workflowId',
+                "displayName": '工作流 ID',
+                "description": '当此向量是通过工作流创建的时候会包含，为创建此向量的工作流 ID',
+                "builtIn": True,
+                "required": False,
+            },
+            {
+                "name": 'createdAt',
+                "displayName": '创建时间',
+                "description": 'Unix 时间戳',
+                "builtIn": True,
+                "required": True,
+            },
+            {
+                "name": 'fileUrl',
+                "displayName": '来源文件链接',
+                "description": '当通过文件导入时会包含此值，为来源文件的链接',
+                "builtIn": True,
+                "required": False,
+            },
+        ]
         return self.collection.insert_one({
             "createdTimestamp": timestamp,
             "updatedTimestamp": timestamp,
@@ -43,36 +74,7 @@ class CollectionTable:
             "dimension": dimension,
             "indexType": index_type,
             "indexParam": index_param,
-            "metadataFields": [
-                {
-                    "name": 'userId',
-                    "displayName": '创建此向量的用户 ID',
-                    "description": '创建此向量的用户 ID',
-                    "builtIn": True,
-                    "required": True,
-                },
-                {
-                    "name": 'workflowId',
-                    "displayName": '工作流 ID',
-                    "description": '当此向量是通过工作流创建的时候会包含，为创建此向量的工作流 ID',
-                    "builtIn": True,
-                    "required": False,
-                },
-                {
-                    "name": 'createdAt',
-                    "displayName": '创建时间',
-                    "description": 'Unix 时间戳',
-                    "builtIn": True,
-                    "required": True,
-                },
-                {
-                    "name": 'fileUrl',
-                    "displayName": '来源文件链接',
-                    "description": '当通过文件导入时会包含此值，为来源文件的链接',
-                    "builtIn": True,
-                    "required": False,
-                },
-            ],
+            "metadataFields": metadata_fields,
             "authorizedTargets": []
         })
 
@@ -240,6 +242,24 @@ class AccountTable:
         if entity:
             return entity
         return self.create_user(team_id, role_name, username, password)
+
+
+class FileRecord:
+    def __init__(self, app_id):
+        self.app_id = app_id
+        self.collection = db[self.app_id + "-" + "vector-file-records"]
+
+    def create_record(self, team_id, collection_name, file_url, split_config):
+        timestamp = int(time.time())
+        self.collection.insert_one({
+            "createdTimestamp": timestamp,
+            "updatedTimestamp": timestamp,
+            "isDeleted": False,
+            "teamId": team_id,
+            "collectionName": collection_name,
+            "fileUrl": file_url,
+            "splitConfig": split_config
+        })
 
 
 class FileProcessProgressTable:

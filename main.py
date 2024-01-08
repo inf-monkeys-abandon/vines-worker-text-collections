@@ -6,6 +6,7 @@ load_dotenv()
 from multiprocessing import Process
 from src.http_server import app
 from src.worker import conductor_client
+from src.queue import consume_task_forever, PROCESS_FILE_QUEUE_NAME
 
 
 def start_http_server():
@@ -13,6 +14,10 @@ def start_http_server():
 
 
 if __name__ == '__main__':
-    p = Process(target=start_http_server, args=())
-    p.start()
+    http_server_process = Process(target=start_http_server, args=())
+    http_server_process.start()
+
+    consume_task_process = Process(target=consume_task_forever, args=(PROCESS_FILE_QUEUE_NAME,))
+    consume_task_process.start()
+
     conductor_client.start_polling()

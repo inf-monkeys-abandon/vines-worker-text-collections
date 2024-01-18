@@ -1,4 +1,6 @@
 from FlagEmbedding import FlagReranker
+from src.utils import ROOT_FOLDER
+import os
 
 BLOCK_NAME = 'reranker'
 BLOCK_DEF = {
@@ -65,7 +67,7 @@ def handler(task, workflow_context, credential_data=None):
     top_k = input_data.get('topK')
 
     reranker = FlagReranker(
-        'BAAI/bge-reranker-large',
+        os.path.join(ROOT_FOLDER, 'models/bge-reranker-large'),
         use_fp16=True
     )
     args = [

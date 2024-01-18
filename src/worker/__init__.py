@@ -10,6 +10,8 @@ from .blocks.insert_vector import BLOCK_NAME as INSERT_VECTOR_BLOCK_NAME, BLOCK_
 from .blocks.text_to_embedding import BLOCK_NAME as TEXT_TO_EMBEDDING_BLOCK_NAME, \
     BLOCK_DEF as TEXT_TO_EMBEDDING_BLOCK_DEF, \
     handler as text_to_embedding_handler
+from .blocks.rerank import BLOCK_NAME as RERANKER_BLOCK_NAME, BLOCK_DEF as RERANKER_BLOCK_DEF, \
+    handler as reranker_handler
 
 SERVICE_REGISTRATION_URL = os.environ.get("SERVICE_REGISTRATION_URL")
 SERVICE_REGISTRATION_TOKEN = os.environ.get("SERVICE_REGISTRATION_TOKEN")
@@ -62,3 +64,5 @@ conductor_client.register_block(TEXT_TO_EMBEDDING_BLOCK_DEF)
 conductor_client.register_handler(SEARCH_VECTOR_BLOCK_NAME, search_vector_handler)
 conductor_client.register_handler(INSERT_VECTOR_BLOCK_NAME, insert_vector_handler)
 conductor_client.register_handler(TEXT_TO_EMBEDDING_BLOCK_NAME, text_to_embedding_handler)
+conductor_client.register_block(RERANKER_BLOCK_DEF)
+conductor_client.register_handler(RERANKER_BLOCK_NAME, reranker_handler)

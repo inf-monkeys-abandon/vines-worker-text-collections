@@ -13,7 +13,8 @@ RUN mkdir models && cd models && git lfs install && \
     git clone https://huggingface.co/BAAI/bge-base-zh-v1.5 && \
     git clone https://huggingface.co/jinaai/jina-embeddings-v2-base-en && \
     git clone https://huggingface.co/jinaai/jina-embeddings-v2-small-en && \
-    git clone https://huggingface.co/moka-ai/m3e-base
+    git clone https://huggingface.co/moka-ai/m3e-base && \
+    git clone https://huggingface.co/BAAI/bge-reranker-large
 
 
 # Install Python dependencies

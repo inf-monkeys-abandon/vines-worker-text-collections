@@ -66,8 +66,10 @@ def handler(task, workflow_context, credential_data=None):
     array = input_data.get('array')
     top_k = input_data.get('topK')
 
+    model_or_path = os.path.join(ROOT_FOLDER, 'models/bge-reranker-large') if os.path.exists(
+        os.path.join(ROOT_FOLDER, 'models/bge-reranker-large')) else "BAAI/bge-reranker-large"
     reranker = FlagReranker(
-        os.path.join(ROOT_FOLDER, 'models/bge-reranker-large'),
+        model_or_path,
         use_fp16=True
     )
     args = [

@@ -1,14 +1,12 @@
-from src.database import CollectionTable
-from src.milvus import MilvusClient
-from src.utils import generate_embedding_of_model
+from src.es import search_records
 
-BLOCK_NAME = 'search_vector'
+BLOCK_NAME = 'fulltext_search_documents'
 BLOCK_DEF = {
     "type": "SIMPLE",
     "name": BLOCK_NAME,
     "categories": ['query'],
-    "displayName": '搜索文本数据',
-    "description": '根据提供的文本对进行相似性搜索',
+    "displayName": '全文检索',
+    "description": '对文本进行全文关键字搜索，返回最匹配的文档列表',
     "icon": 'emoji:💿:#e58c3a',
     "input": [
         {
@@ -20,8 +18,8 @@ BLOCK_DEF = {
             "assetType": 'vectorDatabase',
         },
         {
-            "displayName": '相似性文本',
-            "name": 'question',
+            "displayName": '关键词',
+            "name": 'query',
             "type": 'string',
             "default": '',
             "required": True,
@@ -29,15 +27,22 @@ BLOCK_DEF = {
         {
             "name": "docs",
             "type": "notice",
-            "displayName": '过滤表达式用于对向量进行精准过滤，如 metadata["source"] == "example"，详细语法请见：[https://milvus.io/docs/json_data_type.md](https://milvus.io/docs/json_data_type.md)'
+            "displayName": """使用 ES 搜索过滤表达式用于对文本进行精准过滤。示例：
+```json
+{
+    "term": {
+        "metadata.source": "文件名称"
+    }
+}
+```
+            """
         },
         {
             "displayName": '过滤表达式',
             "name": 'expr',
-            "type": 'string',
+            "type": 'jsonObject',
             "default": '',
             "required": False,
-            "placeholder": 'metadata["source"] == "example"',
             "extra": ""
         },
         {
@@ -86,33 +91,30 @@ def handler(task, workflow_context, credential_data=None):
 
     input_data = task.get("inputData")
     print(input_data)
-    team_id = workflow_context.get('teamId')
     collection_name = input_data.get('collection')
-    question = input_data.get('question')
+    query = input_data.get('query')
     expr = input_data.get('expr')
-    top_k = input_data.get('topK')
+    top_k = input_data.get('topK', 10)
+
+    if not isinstance(top_k, int):
+        raise Exception("topK 必须是一个数字")
 
     app_id = workflow_context.get('APP_ID')
-    table = CollectionTable(app_id=app_id)
-    collection = table.find_by_name(team_id, name=collection_name)
-    if not collection:
-        raise Exception(f"数据集 {collection_name} 不存在或未授权")
 
-    milvus_client = MilvusClient(
+    result = search_records(
         app_id=app_id,
-        collection_name=collection_name
+        index_name=collection_name,
+        query=query,
+        expr=expr,
+        size=top_k
     )
-    embedding_model = collection.get('embeddingModel')
-    embedding = generate_embedding_of_model(embedding_model, question)
-
-    data = milvus_client.search_vector(embedding, expr, top_k)
 
     texts = [
-        item['page_content'] for item in data
+        item['page_content'] for item in result
     ]
     text = '\n'.join(texts)
 
     return {
-        "result": data,
+        "result": result,
         "text": text
     }

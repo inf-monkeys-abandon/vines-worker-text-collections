@@ -10,3 +10,4 @@ mongoengine
 shortid
 vines-worker-sdk==0.0.15
 jq
+elasticsearch

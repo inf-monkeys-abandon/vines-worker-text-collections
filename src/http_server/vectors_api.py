@@ -24,7 +24,6 @@ def save_vector(name):
     text = data.get("text")
     file_url = data.get("fileURL")
     is_async = data.get("async", True)
-    chunk_size = data.get("chunk_size", 2048)
     metadata = data.get("metadata", {})
     metadata["userId"] = user_id
 
@@ -194,5 +193,10 @@ def upsert_record(name, pk):
         app_id=app_id,
         collection_name=name
     )
-    result = milvus_client.upsert_record(pk, text, embedding, metadata)
+    result = milvus_client.upsert_record_batch(
+        [pk],
+        [text],
+        embedding,
+        [metadata]
+    )
     return {"upsert_count": result.upsert_count}

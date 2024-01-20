@@ -12,6 +12,8 @@ from .blocks.text_to_embedding import BLOCK_NAME as TEXT_TO_EMBEDDING_BLOCK_NAME
     handler as text_to_embedding_handler
 from .blocks.rerank import BLOCK_NAME as RERANKER_BLOCK_NAME, BLOCK_DEF as RERANKER_BLOCK_DEF, \
     handler as reranker_handler
+from .blocks.fulltext_search_documents import BLOCK_NAME as FULLTEXT_SEARCH_BLOCK_NAME, \
+    BLOCK_DEF as FULLTEXT_SEARCH_BLOCK_DEF, handler as fulltext_search_handler
 
 SERVICE_REGISTRATION_URL = os.environ.get("SERVICE_REGISTRATION_URL")
 SERVICE_REGISTRATION_TOKEN = os.environ.get("SERVICE_REGISTRATION_TOKEN")
@@ -66,3 +68,5 @@ conductor_client.register_handler(INSERT_VECTOR_BLOCK_NAME, insert_vector_handle
 conductor_client.register_handler(TEXT_TO_EMBEDDING_BLOCK_NAME, text_to_embedding_handler)
 conductor_client.register_block(RERANKER_BLOCK_DEF)
 conductor_client.register_handler(RERANKER_BLOCK_NAME, reranker_handler)
+conductor_client.register_block(FULLTEXT_SEARCH_BLOCK_DEF)
+conductor_client.register_handler(FULLTEXT_SEARCH_BLOCK_NAME, fulltext_search_handler)

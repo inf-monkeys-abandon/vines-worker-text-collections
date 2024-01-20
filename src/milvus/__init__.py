@@ -11,6 +11,7 @@ from src.utils import generate_embedding_of_model, generate_md5
 from src.utils.document_loader import load_documents
 from src.oss import oss_client
 from src.database import FileProcessProgressTable, FileRecord
+from src.es import insert_es_batch, delete_es_document
 
 import time
 
@@ -164,16 +165,7 @@ class MilvusClient:
     def delete_record(self, pk):
         expr = f"pk in ['{pk}']"
         result = self.collection.delete(expr)
-        return result
-
-    def upsert_record(self, pk, text, embedding, metadata):
-        data = [
-            [pk],
-            [text],
-            embedding,
-            [metadata]
-        ]
-        result = self.collection.upsert(data)
+        delete_es_document(self.app_id, self.collection_name, pk)
         return result
 
     def upsert_record_batch(self, pks, texts, embeddings, metadatas):
@@ -186,7 +178,24 @@ class MilvusClient:
             embeddings,
             metadatas
         ]
+        # 写入 milvus
         result = self.collection.upsert(data)
+
+        es_documents = []
+        for index, pk in enumerate(pks):
+            es_documents.append({
+                "_id": pk,
+                "_source": {
+                    "page_content": texts[index],
+                    "metadata": metadatas[index]
+                }
+            })
+        # 写入 es
+        insert_es_batch(
+            self.app_id,
+            self.collection_name,
+            es_documents
+        )
         return result
 
     def insert_vector_from_file(

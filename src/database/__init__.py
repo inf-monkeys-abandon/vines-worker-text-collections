@@ -261,48 +261,21 @@ class FileRecord:
             "splitConfig": split_config
         })
 
+    def get_file_count(self, team_id, collection_name):
+        return self.collection.count({
+            "where": {
+                "teamId": team_id,
+                "isDeleted": False,
+                "collectionName": collection_name
+            }
+        })
+
 
 class FileProcessProgressTable:
 
     def __init__(self, app_id):
         self.app_id = app_id
         self.collection = db[self.app_id + "-" + "vector-file-process-progress"]
-
-    def get_file_count(self, team_id, collection_name):
-        # 聚合管道
-        pipeline = [
-            {
-                '$unwind': '$events'  # 展开 events 数组
-            },
-            {
-                '$match': {
-                    'events.status': 'COMPLETED',
-                    "teamId": team_id,
-                    "collectionName": collection_name
-                }
-            },
-            {
-                '$group': {
-                    '_id': '$_id',
-                    'count': {'$sum': 1}
-                }
-            },
-            {
-                '$group': {
-                    '_id': None,
-                    'total_count': {'$sum': '$count'}
-                }
-            }
-        ]
-
-        # 执行聚合查询
-        result = list(self.collection.aggregate(pipeline))
-
-        total_count = 0
-        # 输出结果
-        if result:
-            total_count = result[0]['total_count']
-        return total_count
 
     def list_tasks(self, team_id, collection_name):
         return self.collection.find(

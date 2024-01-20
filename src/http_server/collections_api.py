@@ -3,7 +3,7 @@ import json
 from .server import app
 from flask import request
 from vines_worker_sdk.server.exceptions import ClientException
-from src.database import CollectionTable, FileProcessProgressTable
+from src.database import CollectionTable, FileProcessProgressTable, FileRecord
 from src.milvus import create_milvus_collection, drop_milvus_collection, rename_collection, get_entity_count_batch, \
     get_entity_count
 from bson.json_util import dumps
@@ -81,10 +81,11 @@ def list_collections():
     data = table.find_by_team(team_id=team_id)
     data = json.loads(dumps(data))
     progress_table = FileProcessProgressTable(app_id=app_id)
+    file_record_table = FileRecord(app_id=app_id)
     for item in data:
         entity_count = get_entity_count(app_id, item['name'])
         item['entityCount'] = entity_count
-        file_count = progress_table.get_file_count(team_id, item['name'])
+        file_count = file_record_table.get_file_count(team_id, item['name'])
         item['fileCount'] = file_count
     return data
 

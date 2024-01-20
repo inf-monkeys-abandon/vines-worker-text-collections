@@ -50,7 +50,7 @@ def search_records(app_id, index_name, query, expr=None, size=10):
     must_statements = [
         {
             "match": {
-                "page_content.keyword": query
+                "page_content": query
             }
         }
     ]

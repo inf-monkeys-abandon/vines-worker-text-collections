@@ -18,11 +18,26 @@ BLOCK_DEF = {
             "assetType": 'vectorDatabase',
         },
         {
-            "displayName": '关键词',
+            "displayName": '用户问题',
             "name": 'query',
             "type": 'string',
             "default": '',
             "required": True,
+        },
+        {
+            "displayName": '过滤元数据',
+            "name": 'metadata_filter',
+            "type": 'multiFieldObject',
+            "default": '',
+            "required": False,
+            "description": "根据元数据的字段进行过滤"
+        },
+        {
+            "displayName": 'TopK',
+            "name": 'topK',
+            "type": 'number',
+            "default": 3,
+            "required": False,
         },
         {
             "name": "docs",
@@ -31,7 +46,7 @@ BLOCK_DEF = {
 ```json
 {
     "term": {
-        "metadata.source": "文件名称"
+        "metadata.filename.keyword": "文件名称"
     }
 }
 ```
@@ -41,15 +56,6 @@ BLOCK_DEF = {
             "displayName": '过滤表达式',
             "name": 'expr',
             "type": 'jsonObject',
-            "default": '',
-            "required": False,
-            "extra": ""
-        },
-        {
-            "displayName": 'TopK',
-            "name": 'topK',
-            "type": 'number',
-            "default": 3,
             "required": False,
         },
     ],
@@ -95,6 +101,7 @@ def handler(task, workflow_context, credential_data=None):
     query = input_data.get('query')
     expr = input_data.get('expr')
     top_k = input_data.get('topK', 10)
+    metadata_filter = input_data.get('metadata_filter')
 
     if not isinstance(top_k, int):
         raise Exception("topK 必须是一个数字")
@@ -106,6 +113,7 @@ def handler(task, workflow_context, credential_data=None):
         index_name=collection_name,
         query=query,
         expr=expr,
+        metadata_filter=metadata_filter,
         size=top_k
     )
 

@@ -20,6 +20,10 @@ def get_index_name(app_id, index_name):
     return (app_id + "-" + index_name).lower()
 
 
+def create_es_template(app_id, index_name):
+    pass
+
+
 def insert_es_batch(app_id, index_name, documents):
     try:
         # 准备批量数据
@@ -46,7 +50,7 @@ def delete_es_document(app_id, index_name, pk):
     return res
 
 
-def search_records(app_id, index_name, query, expr=None, size=10):
+def search_records(app_id, index_name, query, expr=None, metadata_filter=None, size=10):
     must_statements = [
         {
             "match": {
@@ -54,6 +58,13 @@ def search_records(app_id, index_name, query, expr=None, size=10):
             }
         }
     ]
+    if metadata_filter:
+        for key, value in metadata_filter.items():
+            must_statements.append({
+                "term": {
+                    f"metadata.{key}.keyword": value
+                }
+            })
     if expr:
         must_statements.append(expr)
 

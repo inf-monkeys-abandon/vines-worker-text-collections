@@ -262,12 +262,10 @@ class FileRecord:
         })
 
     def get_file_count(self, team_id, collection_name):
-        return self.collection.count({
-            "where": {
-                "teamId": team_id,
-                "isDeleted": False,
-                "collectionName": collection_name
-            }
+        return self.collection.count_documents({
+            "teamId": team_id,
+            "isDeleted": False,
+            "collectionName": collection_name
         })
 
 

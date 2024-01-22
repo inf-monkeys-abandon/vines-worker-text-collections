@@ -12,7 +12,10 @@ BLOCK_DEF = {
         {
             "displayName": '文本数据库',
             "name": 'collection',
-            "type": 'selectVectorCollection',
+            "type": 'string',
+            "typeOptions":{
+                "assetType": 'text-collection'
+            },
             "default": '',
             "required": True,
             "assetType": 'vectorDatabase',
@@ -27,7 +30,10 @@ BLOCK_DEF = {
         {
             "displayName": '过滤元数据',
             "name": 'metadata_filter',
-            "type": 'multiFieldObject',
+            "type": 'json',
+            "typeOptions":{
+                "multipleValues": True,
+            },
             "default": '',
             "required": False,
             "description": "根据元数据的字段进行过滤"
@@ -42,7 +48,7 @@ BLOCK_DEF = {
         {
             "name": "docs",
             "type": "notice",
-            "displayName": """使用 ES 搜索过滤表达式用于对文本进行精准过滤。示例：
+            "displayName": """使用 ES 搜索过滤表达式用于对文本进行精准过滤。\n示例：
 ```json
 {
     "term": {
@@ -55,7 +61,7 @@ BLOCK_DEF = {
         {
             "displayName": '过滤表达式',
             "name": 'expr',
-            "type": 'jsonObject',
+            "type": 'json',
             "required": False,
         },
     ],
@@ -63,12 +69,15 @@ BLOCK_DEF = {
         {
             "name": 'result',
             "displayName": '相似性集合',
-            "type": 'collection',
+            "type": 'json',
+            "typeOptions":{
+                "multipleValues": True,
+            },
             "properties": [
                 {
                     "name": 'metadata',
                     "displayName": '元数据',
-                    "type": 'any',
+                    "type": 'json',
                 },
                 {
                     "name": 'page_content',

@@ -14,7 +14,10 @@ BLOCK_DEF = {
         {
             "displayName": '文本数据库',
             "name": 'collection',
-            "type": 'selectVectorCollection',
+            "type": 'string',
+            "typeOptions":{
+                "assetType": 'text-collection'
+            },
             "default": '',
             "required": True,
             "assetType": 'vectorDatabase',
@@ -52,12 +55,15 @@ BLOCK_DEF = {
         {
             "name": 'result',
             "displayName": '相似性集合',
-            "type": 'collection',
+            "type": 'json',
+            "typeOptions":{
+                "multipleValues": True,
+            },
             "properties": [
                 {
                     "name": 'metadata',
                     "displayName": '元数据',
-                    "type": 'any',
+                    "type": 'json',
                 },
                 {
                     "name": 'page_content',

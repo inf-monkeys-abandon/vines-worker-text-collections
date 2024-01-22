@@ -14,7 +14,10 @@ BLOCK_DEF = {
         {
             "displayName": '向量数据库',
             "name": 'collection',
-            "type": 'selectVectorCollection',
+            "type": 'string',
+            "typeOptions":{
+                "assetType": 'text-collection'
+            },
             "default": '',
             "required": True,
             "assetType": 'vectorDatabase',
@@ -63,7 +66,7 @@ BLOCK_DEF = {
         {
             "name": "docs",
             "type": "notice",
-            "displayName": '设置元数据之后，可以基于元数据对数据进行过滤，如 metadata["source"] == "example"，详细语法请见：[https://milvus.io/docs/json_data_type.md](https://milvus.io/docs/json_data_type.md)'
+            "displayName": '设置元数据之后，可以基于元数据对数据进行过滤，如\n```json\nmetadata["source"] == "example"\n```，详细语法请见：[https://milvus.io/docs/json_data_type.md](https://milvus.io/docs/json_data_type.md)'
         },
         {
             "displayName": '选择元数据类型',
@@ -86,7 +89,10 @@ BLOCK_DEF = {
         {
             "displayName": '元数据',
             "name": 'metadata',
-            "type": 'multiFieldObject',
+            "type": 'json',
+            "typeOptions":{
+                "multipleValues": True,
+            },
             "default": '',
             "required": False,
             "description": "根据元数据的字段进行过滤",
@@ -99,7 +105,7 @@ BLOCK_DEF = {
         {
             "displayName": '元数据',
             "name": 'metadata',
-            "type": 'jsonObject',
+            "type": 'json',
             "default": {},
             "required": False,
             "displayOptions": {
@@ -118,7 +124,7 @@ BLOCK_DEF = {
                 {
                     "name": 'metadata',
                     "displayName": '元数据',
-                    "type": 'any',
+                    "type": 'json',
                 },
                 {
                     "name": 'page_content',

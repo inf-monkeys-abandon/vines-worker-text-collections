@@ -20,7 +20,6 @@ BLOCK_DEF = {
             },
             "default": '',
             "required": True,
-            "assetType": 'vectorDatabase',
         },
         {
             "displayName": '相似性文本',

@@ -19,8 +19,7 @@ BLOCK_DEF = {
                 "assetType": 'text-collection'
             },
             "default": '',
-            "required": True,
-            "assetType": 'vectorDatabase',
+            "required": True
         },
         {
             "displayName": '输入类型',

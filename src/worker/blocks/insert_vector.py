@@ -66,11 +66,47 @@ BLOCK_DEF = {
             "displayName": '设置元数据之后，可以基于元数据对数据进行过滤，如 metadata["source"] == "example"，详细语法请见：[https://milvus.io/docs/json_data_type.md](https://milvus.io/docs/json_data_type.md)'
         },
         {
+            "displayName": '选择元数据类型',
+            "name": 'metadataType',
+            "type": 'options',
+            "options": [
+                {
+                    "name": "Key-Value",
+                    "value": "kv"
+                },
+                {
+                    "name": "纯 JSON",
+                    "value": "json"
+                }
+            ],
+            "default": 'kv',
+            "required": False,
+            "description": "根据元数据的字段进行过滤"
+        },
+        {
+            "displayName": '元数据',
+            "name": 'metadata',
+            "type": 'multiFieldObject',
+            "default": '',
+            "required": False,
+            "description": "根据元数据的字段进行过滤",
+            "displayOptions": {
+                "show": {
+                    "metadataType": ['kv']
+                }
+            }
+        },
+        {
             "displayName": '元数据',
             "name": 'metadata',
             "type": 'jsonObject',
             "default": {},
             "required": False,
+            "displayOptions": {
+                "show": {
+                    "metadataType": ['json']
+                }
+            }
         },
     ],
     "output": [

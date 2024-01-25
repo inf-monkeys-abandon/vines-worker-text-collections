@@ -13,7 +13,7 @@ class CollectionTable:
 
     def __init__(self, app_id):
         self.app_id = app_id
-        self.collection = db[self.app_id + "-" + "vector-collections"]
+        self.collection = db[self.app_id + "-" + "assets-text-collections"]
 
     def insert_one(
             self,
@@ -75,7 +75,8 @@ class CollectionTable:
             "indexType": index_type,
             "indexParam": index_param,
             "metadataFields": metadata_fields,
-            "authorizedTargets": []
+            "authorizedTargets": [],
+            "assetType": "text-collection"
         })
 
     def check_name_conflicts(self, name):

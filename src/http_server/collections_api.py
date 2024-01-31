@@ -9,7 +9,7 @@ from src.milvus import create_milvus_collection, drop_milvus_collection, rename_
 from bson.json_util import dumps
 from src.utils import generate_short_id, get_dimension_by_embedding_model, generate_random_string
 from .users_api import init_milvus_user_if_not_exists
-import traceback
+from src.es import ESClient
 
 
 @app.post('/api/vector/collections')
@@ -21,13 +21,6 @@ def create_collection():
     name = generate_random_string()
     embedding_model = data.get('embeddingModel')
     metadata_fields = data.get('metadataFields', None)
-
-    index_type = data.get('indexType')
-    if not index_type:
-        raise ClientException("请指定 index 类型")
-    index_param = data.get('indexParam')
-    if not index_param:
-        raise ClientException("请指定 index 参数")
     description = data.get('description', '')
     dimension = get_dimension_by_embedding_model(embedding_model)
     table = CollectionTable(
@@ -40,17 +33,12 @@ def create_collection():
     user_id = request.user_id
     team_id = request.team_id
 
-    init_milvus_user_if_not_exists(app_id, team_id)
-
-    # 在 milvus 中创建
-    create_milvus_collection(
-        app_id,
-        name,
-        index_type,
-        index_param,
-        description,
-        dimension
+    # 在 es 中创建 template
+    es_client = ESClient(
+        app_id=app_id,
+        index_name=name
     )
+    es_client.create_es_template(dimension)
     table.insert_one(
         creator_user_id=user_id,
         team_id=team_id,
@@ -60,8 +48,6 @@ def create_collection():
         embedding_model=embedding_model,
         dimension=dimension,
         logo=logo,
-        index_type=index_type,
-        index_param=index_param,
         metadata_fields=metadata_fields
     )
 
@@ -186,22 +172,13 @@ def copy_collection(name):
     dimension = collection.get('dimension')
     new_collection_name = generate_short_id()
     description = collection.get('description')
-    index_type = collection.get('indexType', 'IVF_FLAT')
-    index_param = collection.get('indexParma', {
-        "metric_type": "L2",
-        "params": {
-            "nlist": 128
-        }
-    })
-    create_milvus_collection(
-        app_id=app_id,
-        name=new_collection_name,
-        index_type=index_type,
-        index_param=index_param,
-        description=description,
-        dimension=dimension
-    )
 
+    # 在 es 中创建 template
+    create_es_template(
+        app_id,
+        name,
+        dimension
+    )
     table.insert_one(
         creator_user_id=user_id,
         team_id=team_id,
@@ -211,8 +188,7 @@ def copy_collection(name):
         logo=collection.get('logo'),
         embedding_model=embedding_model,
         dimension=dimension,
-        index_type=index_type,
-        index_param=index_param
+        metadata_fields=collection.get('metadataFields')
     )
     return {
         "name": new_collection_name

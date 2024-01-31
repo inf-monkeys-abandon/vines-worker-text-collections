@@ -11,26 +11,25 @@ from src.utils import generate_embedding_of_model, generate_md5
 from src.utils.document_loader import load_documents
 from src.oss import oss_client
 from src.database import FileProcessProgressTable, FileRecord
-from src.es import insert_es_batch, delete_es_document
 
 import time
 
-MILVUS_ADDRESS = os.environ.get('MILVUS_ADDRESS')
-MILVUS_PUBLIC_ADDRESS = os.environ.get('MILVUS_PUBLIC_ADDRESS')
-MILVUS_USER = os.environ.get("MILVUS_USER")
-MILVUS_PASSWORD = os.environ.get("MILVUS_PASSWORD")
-
-if not (MILVUS_ADDRESS and MILVUS_USER and MILVUS_PASSWORD):
-    raise Exception("请在环境变量中配置 MILVUS_ADDRESS, MILVUS_USER 和 MILVUS_PASSWORD")
-
-[MILVUS_HOST, MILVUS_PORT] = MILVUS_ADDRESS.split(':')
-connections.connect(
-    "default",
-    host=MILVUS_HOST,
-    port=int(MILVUS_PORT),
-    user=MILVUS_USER,
-    password=MILVUS_PASSWORD
-)
+# MILVUS_ADDRESS = os.environ.get('MILVUS_ADDRESS')
+# MILVUS_PUBLIC_ADDRESS = os.environ.get('MILVUS_PUBLIC_ADDRESS')
+# MILVUS_USER = os.environ.get("MILVUS_USER")
+# MILVUS_PASSWORD = os.environ.get("MILVUS_PASSWORD")
+#
+# if not (MILVUS_ADDRESS and MILVUS_USER and MILVUS_PASSWORD):
+#     raise Exception("请在环境变量中配置 MILVUS_ADDRESS, MILVUS_USER 和 MILVUS_PASSWORD")
+#
+# [MILVUS_HOST, MILVUS_PORT] = MILVUS_ADDRESS.split(':')
+# connections.connect(
+#     "default",
+#     host=MILVUS_HOST,
+#     port=int(MILVUS_PORT),
+#     user=MILVUS_USER,
+#     password=MILVUS_PASSWORD
+# )
 
 
 def calculate_max_m(dim):

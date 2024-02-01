@@ -4,12 +4,12 @@ import json
 import traceback
 
 from src.database import CollectionTable, FileProcessProgressTable
-from src.milvus import MilvusClient
+from src.es import ESClient
 
 REDIS_URL = os.environ.get("REDIS_URL")
 redis = redis.from_url(REDIS_URL)
 
-PROCESS_FILE_QUEUE_NAME = 'queue:vines-worker-milvus:process-file'
+PROCESS_FILE_QUEUE_NAME = 'queue:vines-worker-text-collections:process-file'
 
 
 def submit_task(queue_name, task_data):
@@ -41,9 +41,9 @@ def consume_task_forever(queue_name):
             app_id=app_id
         )
         progress_table = FileProcessProgressTable(app_id)
+        es_client = ESClient(app_id=app_id, index_name=collection_name)
         try:
-            milvus_client = MilvusClient(app_id=app_id, collection_name=collection_name)
-            milvus_client.insert_vector_from_file(
+            es_client.insert_vector_from_file(
                 team_id,
                 embedding_model, file_url, metadata, task_id,
                 chunk_size=chunk_size,

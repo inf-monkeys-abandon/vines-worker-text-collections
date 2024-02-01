@@ -25,8 +25,6 @@ class CollectionTable:
             logo,
             embedding_model,
             dimension,
-            index_type,
-            index_param,
             metadata_fields
     ):
         timestamp = int(time.time())
@@ -72,8 +70,6 @@ class CollectionTable:
             "logo": logo,
             "embeddingModel": embedding_model,
             "dimension": dimension,
-            "indexType": index_type,
-            "indexParam": index_param,
             "metadataFields": metadata_fields,
             "authorizedTargets": [],
             "assetType": "text-collection"

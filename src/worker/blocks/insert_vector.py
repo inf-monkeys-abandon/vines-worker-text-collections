@@ -1,6 +1,6 @@
-from src.milvus import MilvusClient
 from src.utils import generate_embedding_of_model, generate_md5
 from src.database import CollectionTable, FileProcessProgressTable
+from src.es import ESClient
 
 BLOCK_NAME = 'insert_vector'
 BLOCK_DEF = {
@@ -15,7 +15,7 @@ BLOCK_DEF = {
             "displayName": '向量数据库',
             "name": 'collection',
             "type": 'string',
-            "typeOptions":{
+            "typeOptions": {
                 "assetType": 'text-collection'
             },
             "default": '',
@@ -63,11 +63,6 @@ BLOCK_DEF = {
             },
         },
         {
-            "name": "docs",
-            "type": "notice",
-            "displayName": '设置元数据之后，可以基于元数据对数据进行过滤，如\n```json\nmetadata["source"] == "example"\n```，详细语法请见：[https://milvus.io/docs/json_data_type.md](https://milvus.io/docs/json_data_type.md)'
-        },
-        {
             "displayName": '选择元数据类型',
             "name": 'metadataType',
             "type": 'options',
@@ -89,8 +84,9 @@ BLOCK_DEF = {
             "displayName": '元数据',
             "name": 'metadata',
             "type": 'json',
-            "typeOptions":{
-                "multipleValues": True,
+            "typeOptions": {
+                "multipleValues": False,
+                "multiFieldObject": True
             },
             "default": '',
             "required": False,
@@ -173,16 +169,24 @@ def handler(task, workflow_context, credential_data=None):
 
     table.add_metadata_fields_if_not_exists(team_id, collection_name, metadata.keys())
 
-    milvus_client = MilvusClient(
+    es_client = ESClient(
         app_id=app_id,
-        collection_name=collection_name
+        index_name=collection_name
     )
     embedding_model = collection.get('embeddingModel')
-
     if inputType == 'text':
         embedding = generate_embedding_of_model(embedding_model, [text])
         pk = generate_md5(text)
-        res = milvus_client.upsert_record_batch([pk], [text], embedding, [metadata])
+        res = es_client.upsert_documents_batch([
+            {
+                "_id": pk,
+                "_source": {
+                    "page_content": text,
+                    "metadata": metadata,
+                    "embeddings": embedding
+                }
+            }
+        ])
     elif inputType == 'fileUrl':
         progress_table = FileProcessProgressTable(app_id=app_id)
         progress_table.create_task(
@@ -191,7 +195,7 @@ def handler(task, workflow_context, credential_data=None):
             task_id=task_id
         )
         try:
-            res = milvus_client.insert_vector_from_file(
+            res = es_client.insert_vector_from_file(
                 team_id,
                 embedding_model, fileUrl, metadata, task_id)
         except Exception as e:

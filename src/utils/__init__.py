@@ -130,3 +130,19 @@ def txt_pre_process(txt, pre_process_rules):
     if "delete-url-and-email" in pre_process_rules:
         txt = delete_url_email(txt)
     return txt
+
+
+def chunk_list(input_list, chunk_size):
+    """
+    Chunk a list into smaller parts of specified size.
+
+    Parameters:
+    - input_list: The input list to be chunked.
+    - chunk_size: The size of each chunk.
+
+    Returns:
+    A list of chunks.
+    """
+    return [
+        input_list[i: i + chunk_size] for i in range(0, len(input_list), chunk_size)
+    ]

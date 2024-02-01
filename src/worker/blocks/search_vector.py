@@ -1,6 +1,6 @@
 from src.database import CollectionTable
-from src.milvus import MilvusClient
 from src.utils import generate_embedding_of_model
+from src.es import ESClient
 
 BLOCK_NAME = 'search_vector'
 BLOCK_DEF = {
@@ -15,7 +15,7 @@ BLOCK_DEF = {
             "displayName": '文本数据库',
             "name": 'collection',
             "type": 'string',
-            "typeOptions":{
+            "typeOptions": {
                 "assetType": 'text-collection'
             },
             "default": '',
@@ -29,25 +29,23 @@ BLOCK_DEF = {
             "required": True,
         },
         {
-            "name": "docs",
-            "type": "notice",
-            "displayName": '过滤表达式用于对向量进行精准过滤，如 metadata["source"] == "example"，详细语法请见：[https://milvus.io/docs/json_data_type.md](https://milvus.io/docs/json_data_type.md)'
-        },
-        {
-            "displayName": '过滤表达式',
-            "name": 'expr',
-            "type": 'string',
-            "default": '',
-            "required": False,
-            "placeholder": 'metadata["source"] == "example"',
-            "extra": ""
-        },
-        {
             "displayName": 'TopK',
             "name": 'topK',
             "type": 'number',
             "default": 3,
             "required": False,
+        },
+        {
+            "displayName": '过滤元数据',
+            "name": 'metadata_filter',
+            "type": 'json',
+            "typeOptions": {
+                "multiFieldObject": True,
+                "multipleValues": False
+            },
+            "default": '',
+            "required": False,
+            "description": "根据元数据的字段进行过滤"
         },
     ],
     "output": [
@@ -55,7 +53,7 @@ BLOCK_DEF = {
             "name": 'result',
             "displayName": '相似性集合',
             "type": 'json',
-            "typeOptions":{
+            "typeOptions": {
                 "multipleValues": True,
             },
             "properties": [
@@ -94,8 +92,8 @@ def handler(task, workflow_context, credential_data=None):
     team_id = workflow_context.get('teamId')
     collection_name = input_data.get('collection')
     question = input_data.get('question')
-    expr = input_data.get('expr')
     top_k = input_data.get('topK')
+    metadata_filter = input_data.get('metadata_filter', None)
 
     app_id = workflow_context.get('APP_ID')
     table = CollectionTable(app_id=app_id)
@@ -103,15 +101,18 @@ def handler(task, workflow_context, credential_data=None):
     if not collection:
         raise Exception(f"数据集 {collection_name} 不存在或未授权")
 
-    milvus_client = MilvusClient(
+    es_client = ESClient(
         app_id=app_id,
-        collection_name=collection_name
+        index_name=collection_name
     )
     embedding_model = collection.get('embeddingModel')
     embedding = generate_embedding_of_model(embedding_model, question)
 
-    data = milvus_client.search_vector(embedding, expr, top_k)
-
+    data = es_client.vector_search(embedding, top_k, metadata_filter)
+    data = [{
+        'page_content': item['_source']['page_content'],
+        "metadata": item['_source']['metadata']
+    } for item in data]
     texts = [
         item['page_content'] for item in data
     ]

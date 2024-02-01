@@ -10,5 +10,5 @@ SERVICE_AUTHENTICATION_TOKEN = os.environ.get("SERVICE_AUTHENTICATION_TOKEN")
 app = create_server(
     jwt_secret=JWT_SECRET,
     service_token=SERVICE_AUTHENTICATION_TOKEN,
-    import_name="vines-worker-milvus",
+    import_name="vines-worker-text-collection",
 )

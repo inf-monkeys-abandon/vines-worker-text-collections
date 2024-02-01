@@ -9,7 +9,7 @@ from src.es import ESClient
 REDIS_URL = os.environ.get("REDIS_URL")
 redis = redis.from_url(REDIS_URL)
 
-PROCESS_FILE_QUEUE_NAME = 'queue:vines-worker-milvus:process-file'
+PROCESS_FILE_QUEUE_NAME = 'queue:vines-worker-text-collections:process-file'
 
 
 def submit_task(queue_name, task_data):

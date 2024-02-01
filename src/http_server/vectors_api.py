@@ -1,5 +1,4 @@
 from flask import request
-from src.milvus import MilvusClient
 from src.utils import generate_embedding_of_model, generate_md5
 from .server import app
 from src.database import CollectionTable, FileProcessProgressTable
@@ -91,14 +90,23 @@ def upsert_vector_batch(name):
     if not collection:
         raise ClientException(f"向量数据库 {name} 不存在")
     embedding_model = collection.get("embeddingModel")
-    milvus_client = MilvusClient(app_id=app_id, collection_name=name)
+    es_client = ESClient(app_id=app_id, collection_name=name)
     list = request.json
-    pks = [item["pk"] for item in list]
     texts = [item["text"] for item in list]
-    metadatas = [item["metadata"] for item in list]
     embeddings = generate_embedding_of_model(embedding_model, texts)
-    result = milvus_client.upsert_record_batch(pks, texts, embeddings, metadatas)
-    return {"upsert_count": result.upsert_count}
+    es_client.upsert_documents_batch(
+        [
+            {
+                "_id": item['pk'],
+                "_source": {
+                    "page_content": item['text'],
+                    "metadata": item['metadata'],
+                    "embeddings": embeddings[index]
+                }
+            }
+        ] for (item, index) in enumerate(list)
+    )
+    return {"success": True}
 
 
 @app.post("/api/vector/collections/<string:name>/full-text-search")
@@ -107,12 +115,16 @@ def full_text_search(name):
     data = request.json
     query = data.get("query", None)
     es_client = ESClient(app_id=app_id, index_name=name)
-    from_ = data.get("from_", 0)
-    size = data.get("limit", 30)
+    from_ = data.get("from", 0)
+    size = data.get("size", 30)
+    metadata_filter = data.get('metadataFilter', None)
+    sort_by_created_at = data.get('sortByCreatedAt', False)
     hits = es_client.full_text_search(
         query=query,
         from_=from_,
-        size=size
+        size=size,
+        metadata_filter=metadata_filter,
+        sort_by_created_at=sort_by_created_at
     )
     return {"hits": hits}
 
@@ -128,14 +140,12 @@ def vector_search(name):
     collection = table.find_by_name(team_id, name)
     embedding_model = collection["embeddingModel"]
     expr = data.get("expr")
-    q = data.get("q")
+    query = data.get("query")
     limit = data.get("limit", 30)
-    embedding = generate_embedding_of_model(embedding_model, q)
-    milvus_client = MilvusClient(app_id=app_id, collection_name=name)
-    data = milvus_client.search_vector(embedding, expr, limit)
-    return {
-        "records": data,
-    }
+    embedding = generate_embedding_of_model(embedding_model, query)
+    es_client = ESClient(app_id=app_id, index_name=name)
+    hits = es_client.vector_search(embedding, limit)
+    return {"hits": hits}
 
 
 @app.delete("/api/vector/collections/<string:name>/records/<string:pk>")

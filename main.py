@@ -5,7 +5,7 @@ load_dotenv()
 
 from multiprocessing import Process
 from src.http_server import app
-# from src.worker import conductor_client
+from src.worker import conductor_client
 from src.queue import consume_task_forever, PROCESS_FILE_QUEUE_NAME
 
 
@@ -20,4 +20,4 @@ if __name__ == '__main__':
     consume_task_process = Process(target=consume_task_forever, args=(PROCESS_FILE_QUEUE_NAME,))
     consume_task_process.start()
 
-    # conductor_client.start_polling()
+    conductor_client.start_polling()

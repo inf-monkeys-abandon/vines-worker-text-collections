@@ -1,4 +1,4 @@
-from src.es import search_records
+from src.es import ESClient
 
 BLOCK_NAME = 'fulltext_search_documents'
 BLOCK_DEF = {
@@ -13,7 +13,7 @@ BLOCK_DEF = {
             "displayName": '文本数据库',
             "name": 'collection',
             "type": 'string',
-            "typeOptions":{
+            "typeOptions": {
                 "assetType": 'text-collection'
             },
             "default": '',
@@ -30,8 +30,9 @@ BLOCK_DEF = {
             "displayName": '过滤元数据',
             "name": 'metadata_filter',
             "type": 'json',
-            "typeOptions":{
-                "multipleValues": True,
+            "typeOptions": {
+                "multiFieldObject": True,
+                "multipleValues": False
             },
             "default": '',
             "required": False,
@@ -69,7 +70,7 @@ BLOCK_DEF = {
             "name": 'result',
             "displayName": '相似性集合',
             "type": 'json',
-            "typeOptions":{
+            "typeOptions": {
                 "multipleValues": True,
             },
             "properties": [
@@ -116,15 +117,20 @@ def handler(task, workflow_context, credential_data=None):
 
     app_id = workflow_context.get('APP_ID')
 
-    result = search_records(
+    es_client = ESClient(
         app_id=app_id,
-        index_name=collection_name,
+        index_name=collection_name
+    )
+    result = es_client.full_text_search(
         query=query,
         expr=expr,
         metadata_filter=metadata_filter,
         size=top_k
     )
-
+    result = [{
+        'page_content': item['_source']['page_content'],
+        "metadata": item['_source']['metadata']
+    } for item in result]
     texts = [
         item['page_content'] for item in result
     ]

@@ -1,4 +1,8 @@
+import time
+
+import elasticsearch
 from elasticsearch import Elasticsearch, helpers
+from elasticsearch.helpers import BulkIndexError
 import os
 import traceback
 from vines_worker_sdk.utils.files import ensure_directory_exists
@@ -11,6 +15,10 @@ from src.utils.document_loader import load_documents
 ELASTICSEARCH_URL = os.environ.get("ELASTICSEARCH_URL")
 ELASTICSEARCH_USERNAME = os.environ.get("ELASTICSEARCH_USERNAME")
 ELASTICSEARCH_PASSWORD = os.environ.get("ELASTICSEARCH_PASSWORD")
+ELASTICSEARCH_KNN_NUM_CANDIDATES = os.environ.get('ELASTICSEARCH_KNN_NUM_CANDIDATES', '100')
+ELASTICSEARCH_KNN_NUM_CANDIDATES = int(ELASTICSEARCH_KNN_NUM_CANDIDATES)
+ELASTICSEARCH_BATCH_SIZE = os.environ.get('ELASTICSEARCH_BATCH_SIZE', '1000')
+ELASTICSEARCH_BATCH_SIZE = int(ELASTICSEARCH_BATCH_SIZE)
 
 # 连接到 Elasticsearch
 es = Elasticsearch(
@@ -32,58 +40,72 @@ class ESClient:
         self.index_name_with_no_suffix = index_name
         self.index_name = get_index_name(app_id, index_name)
 
-    def create_es_template(self, dimension: int):
-        template = {
-            "template": self.index_name,  # 索引名称模式
-            "settings": {
-                "number_of_shards": 1
-            },
-            "mappings": {
-                "properties": {
-                    "page_content": {"type": "text"},
-                    "embeddings": {"type": "dense_vector", "dims": dimension},
-                    "metadata": {
-                        "type": "object",
-                        "properties": {
-                            "createdAt": {
-                                "type": "date"
-                            },
-                            "userId": {
-                                "type": "keyword"
-                            },
-                            "workflowId": {
-                                "type": "keyword"
-                            },
-                            "fileUrl": {
-                                "type": "text"
-                            }
+    def create_es_index(self, dimension: int):
+        es.indices.create(index=self.index_name, mappings={
+            "properties": {
+                "page_content": {"type": "text"},
+                "embeddings": {"type": "dense_vector", "dims": dimension, "similarity": "l2_norm"},
+                "metadata": {
+                    "type": "object",
+                    "properties": {
+                        "createdAt": {
+                            "type": "date"
                         },
-                    }
+                        "userId": {
+                            "type": "text"
+                        },
+                        "workflowId": {
+                            "type": "text"
+                        },
+                        "fileUrl": {
+                            "type": "text"
+                        }
+                    },
                 }
             }
-        }
-        es.indices.put_template(
-            name=self.index_name,
-            body=template
-        )
+        })
+
+    def delete_index(self):
+        response = es.indices.delete(index=self.index_name, ignore=[400, 404])
+        return response
+
+    def count_documents(self):
+        response = es.count(index=self.index_name)
+        return response['count']
 
     def upsert_document(self, pk, document):
+        document = self.__add_created_metadata_if_not_exists(document)
         return es.index(index=self.index_name, document=document, id=pk)
+
+    def __add_created_metadata_if_not_exists(self, _source):
+        if not _source.get('metadata'):
+            _source['metadata'] = {}
+        if not _source['metadata'].get('createdAt'):
+            _source['metadata']['createdAt'] = int(time.time())
+        return _source
 
     def upsert_documents_batch(self, all_documents):
         # 准备批量数据
-        chunks = chunk_list(all_documents, 100)
+        chunks = chunk_list(all_documents, ELASTICSEARCH_BATCH_SIZE)
         for chunk in chunks:
             documents = [
                 {
                     "_index": self.index_name,
-                    "_type": "doc",
                     "_id": document['_id'],
-                    "_source": document['_source']
+                    "_source": self.__add_created_metadata_if_not_exists(document['_source'])
                 } for document in chunk
             ]
-            # 执行批量操作
-            helpers.bulk(es, documents)
+            try:
+                helpers.bulk(es, documents)
+            except BulkIndexError as e:
+                print(f"An error occurred: {e}")
+                for i, error in enumerate(e.errors):
+                    # 输出每个失败文档的详细错误信息
+                    print(f"Document {i} failed: {error}")
+                raise e
+            except elasticsearch.ConnectionError as e:
+                traceback.print_exc()
+                raise Exception("写入数据超时")
 
     def delete_es_document(self, pk):
         res = es.delete(
@@ -92,7 +114,7 @@ class ESClient:
         )
         return res
 
-    def full_text_search(self, query=None, expr=None, metadata_filter=None, from_=0, size=10):
+    def full_text_search(self, query=None, expr=None, metadata_filter=None, from_=0, size=10, sort_by_created_at=False):
         """ Full Text Search
         :param query: 搜索关键词
         :param expr:
@@ -118,17 +140,55 @@ class ESClient:
         if expr:
             must_statements.append(expr)
 
-        response = es.search(
-            index=self.index_name,
-            query={
+        try:
+            response = es.search(
+                index=self.index_name,
+                query={
+                    "bool": {
+                        "must": must_statements
+                    }
+                },
+                from_=from_,
+                size=size,
+                sort=[
+                    {
+                        'metadata.createdAt': {
+                            "order": "desc"
+                        }
+                    }
+                ] if sort_by_created_at else None
+            )
+
+            return response['hits']['hits']
+        except elasticsearch.NotFoundError:
+            return []
+
+    def vector_search(self, query_vector, top_k, metadata_filter=None):
+        must_statements = []
+        if metadata_filter:
+            for key, value in metadata_filter.items():
+                must_statements.append({
+                    "term": {
+                        f"metadata.{key}.keyword": value
+                    }
+                })
+
+        search_body = {
+            "knn": {
+                "field": "embeddings",
+                "query_vector": query_vector,
+                "k": top_k,
+                "num_candidates": ELASTICSEARCH_KNN_NUM_CANDIDATES
+            },
+            "fields": ["page_content", "metadata"],
+        }
+        if len(must_statements) > 0:
+            search_body['query'] = {
                 "bool": {
                     "must": must_statements
                 }
-            },
-            from_=from_,
-            size=size
-        )
-
+            }
+        response = es.search(index=self.index_name, body=search_body)
         return response['hits']['hits']
 
     def insert_vector_from_file(

@@ -132,11 +132,12 @@ class ESClient:
 
         if metadata_filter:
             for key, value in metadata_filter.items():
-                must_statements.append({
-                    "term": {
-                        f"metadata.{key}.keyword": value
-                    }
-                })
+                if value is not None:
+                    must_statements.append({
+                        "term": {
+                            f"metadata.{key}.keyword": value
+                        }
+                    })
         if expr:
             must_statements.append(expr)
 
@@ -242,7 +243,7 @@ class ESClient:
             })
 
         progress_table.update_progress(task_id, 0.8, "已生成向量，正在写入向量数据库")
-        res = self.upsert_documents_batch(es_documents)
+        self.upsert_documents_batch(es_documents)
         progress_table.update_progress(task_id, 1.0, f"完成，共写入 {len(es_documents)} 条向量数据")
 
         file_table = FileRecord(app_id=self.app_id)
@@ -253,4 +254,4 @@ class ESClient:
             "preProcessRules": pre_process_rules,
             "jqSchema": jqSchema
         })
-        return res
+        return len(es_documents)

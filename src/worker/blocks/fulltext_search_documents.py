@@ -5,7 +5,7 @@ BLOCK_DEF = {
     "type": "SIMPLE",
     "name": BLOCK_NAME,
     "categories": ['query'],
-    "displayName": '全文检索',
+    "displayName": '文本全文搜索',
     "description": '对文本进行全文关键字搜索，返回最匹配的文档列表',
     "icon": 'emoji:💿:#e58c3a',
     "input": [
@@ -20,14 +20,38 @@ BLOCK_DEF = {
             "required": True
         },
         {
-            "displayName": '用户问题',
+            "displayName": '关键词',
             "name": 'query',
             "type": 'string',
             "default": '',
-            "required": True,
+            "required": False,
         },
         {
-            "displayName": '过滤元数据',
+            "displayName": 'TopK',
+            "name": 'topK',
+            "type": 'number',
+            "default": 3,
+            "required": False,
+        },
+        {
+            "displayName": '数据过滤方式',
+            "name": 'filterType',
+            "type": 'options',
+            "options": [
+                {
+                    "name": "简单形式",
+                    "value": "simple"
+                },
+                {
+                    "name": "ES 表达式",
+                    "value": "es-expression"
+                }
+            ],
+            "default": 'simple',
+            "required": False,
+        },
+        {
+            "displayName": '根据元数据的字段进行过滤',
             "name": 'metadata_filter',
             "type": 'json',
             "typeOptions": {
@@ -36,14 +60,14 @@ BLOCK_DEF = {
             },
             "default": '',
             "required": False,
-            "description": "根据元数据的字段进行过滤"
-        },
-        {
-            "displayName": 'TopK',
-            "name": 'topK',
-            "type": 'number',
-            "default": 3,
-            "required": False,
+            "description": "根据元数据的字段进行过滤",
+            "displayOptions": {
+                "show": {
+                    "filterType": [
+                        "simple"
+                    ]
+                }
+            }
         },
         {
             "name": "docs",
@@ -56,13 +80,34 @@ BLOCK_DEF = {
     }
 }
 ```
-            """
+            """,
+            "displayOptions": {
+                "show": {
+                    "filterType": [
+                        "es-expression"
+                    ]
+                }
+            }
         },
         {
             "displayName": '过滤表达式',
             "name": 'expr',
             "type": 'json',
             "required": False,
+            "displayOptions": {
+                "show": {
+                    "filterType": [
+                        "es-expression"
+                    ]
+                }
+            }
+        },
+        {
+            "displayName": '是否按照创建时间进行排序',
+            "name": 'orderByCreatedAt',
+            "type": 'boolean',
+            "required": False,
+            "default": False
         },
     ],
     "output": [
@@ -111,6 +156,7 @@ def handler(task, workflow_context, credential_data=None):
     expr = input_data.get('expr')
     top_k = input_data.get('topK', 10)
     metadata_filter = input_data.get('metadata_filter')
+    order_by_created_at = input_data.get("orderByCreatedAt")
 
     if not isinstance(top_k, int):
         raise Exception("topK 必须是一个数字")
@@ -125,7 +171,8 @@ def handler(task, workflow_context, credential_data=None):
         query=query,
         expr=expr,
         metadata_filter=metadata_filter,
-        size=top_k
+        size=top_k,
+        sort_by_created_at=order_by_created_at
     )
     result = [{
         'page_content': item['_source']['page_content'],

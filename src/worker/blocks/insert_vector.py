@@ -63,7 +63,7 @@ BLOCK_DEF = {
             },
         },
         {
-            "displayName": '选择元数据类型',
+            "displayName": '元数据类型',
             "name": 'metadataType',
             "type": 'options',
             "options": [
@@ -112,25 +112,13 @@ BLOCK_DEF = {
     ],
     "output": [
         {
-            "name": 'result',
-            "displayName": '相似性集合',
-            "type": 'collection',
-            "properties": [
-                {
-                    "name": 'metadata',
-                    "displayName": '元数据',
-                    "type": 'json',
-                },
-                {
-                    "name": 'page_content',
-                    "displayName": '文本内容',
-                    "type": 'string',
-                },
-            ],
+            "name": 'insert_count',
+            "displayName": '写入的数目',
+            "type": 'number',
         },
     ],
     "extra": {
-        "estimateTime": 30,
+        "estimateTime": 5,
     },
 }
 
@@ -174,19 +162,21 @@ def handler(task, workflow_context, credential_data=None):
         index_name=collection_name
     )
     embedding_model = collection.get('embeddingModel')
+    inserted_count = 0
     if inputType == 'text':
         embedding = generate_embedding_of_model(embedding_model, [text])
         pk = generate_md5(text)
-        res = es_client.upsert_documents_batch([
+        es_client.upsert_documents_batch([
             {
                 "_id": pk,
                 "_source": {
                     "page_content": text,
                     "metadata": metadata,
-                    "embeddings": embedding
+                    "embeddings": embedding[0]
                 }
             }
         ])
+        inserted_count = 1
     elif inputType == 'fileUrl':
         progress_table = FileProcessProgressTable(app_id=app_id)
         progress_table.create_task(
@@ -195,7 +185,7 @@ def handler(task, workflow_context, credential_data=None):
             task_id=task_id
         )
         try:
-            res = es_client.insert_vector_from_file(
+            inserted_count = es_client.insert_vector_from_file(
                 team_id,
                 embedding_model, fileUrl, metadata, task_id)
         except Exception as e:
@@ -205,9 +195,5 @@ def handler(task, workflow_context, credential_data=None):
         raise Exception("不合法的 inputType: ", inputType)
 
     return {
-        "insert_count": res.insert_count,
-        "delete_count": res.delete_count,
-        "upsert_count": res.upsert_count,
-        "success_count": res.succ_count,
-        "err_count": res.err_count
+        "insert_count": inserted_count
     }

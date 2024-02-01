@@ -7,7 +7,7 @@ BLOCK_DEF = {
     "type": "SIMPLE",
     "name": BLOCK_NAME,
     "categories": ['query'],
-    "displayName": '搜索文本数据',
+    "displayName": '文本向量搜索',
     "description": '根据提供的文本对进行相似性搜索',
     "icon": 'emoji:💿:#e58c3a',
     "input": [
@@ -22,7 +22,7 @@ BLOCK_DEF = {
             "required": True,
         },
         {
-            "displayName": '相似性文本',
+            "displayName": '关键词',
             "name": 'question',
             "type": 'string',
             "default": '',
@@ -36,7 +36,7 @@ BLOCK_DEF = {
             "required": False,
         },
         {
-            "displayName": '过滤元数据',
+            "displayName": '根据元数据字段进行过滤',
             "name": 'metadata_filter',
             "type": 'json',
             "typeOptions": {

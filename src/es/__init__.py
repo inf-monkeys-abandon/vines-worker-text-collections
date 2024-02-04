@@ -192,13 +192,31 @@ class ESClient:
         response = es.search(index=self.index_name, body=search_body)
         return response['hits']['hits']
 
+    def insert_texts_batch(self, embedding_model, text_list):
+        page_contents = [
+            item['page_content'] for item in text_list
+        ]
+        embeddings = generate_embedding_of_model(embedding_model, page_contents)
+        self.upsert_documents_batch(
+            [
+                {
+                    "_id": generate_md5(item['page_content']),
+                    "_source": {
+                        "page_content": item['page_content'],
+                        "metadata": item.get('metadata', {}),
+                        "embeddings": embeddings[index]
+                    }
+                }
+            ] for (item, index) in enumerate(text_list)
+        )
+
     def insert_vector_from_file(
             self,
             team_id,
             embedding_model,
             file_url,
             metadata,
-            task_id,
+            task_id=None,
             chunk_size=1000,
             chunk_overlap=0,
             separator='\n\n',
@@ -210,7 +228,8 @@ class ESClient:
         if not file_path:
             raise Exception("下载文件失败")
         progress_table = FileProcessProgressTable(app_id=self.app_id)
-        progress_table.update_progress(task_id, 0.1, "已下载文件到服务器")
+        if task_id:
+            progress_table.update_progress(task_id, 0.1, "已下载文件到服务器")
         texts = load_documents(file_path, chunk_size=chunk_size, chunk_overlap=chunk_overlap, separator=separator,
                                pre_process_rules=pre_process_rules,
                                jqSchema=jqSchema
@@ -218,8 +237,8 @@ class ESClient:
         texts = [text.page_content for text in texts]
         if len(texts) == 0:
             raise Exception("解析到的段落数为 0")
-
-        progress_table.update_progress(task_id, 0.3, "已加载文件")
+        if task_id:
+            progress_table.update_progress(task_id, 0.3, "已加载文件")
 
         pks = [
             generate_md5(text) for text in texts
@@ -242,9 +261,11 @@ class ESClient:
                 }
             })
 
-        progress_table.update_progress(task_id, 0.8, "已生成向量，正在写入向量数据库")
+        if task_id:
+            progress_table.update_progress(task_id, 0.8, "已生成向量，正在写入向量数据库")
         self.upsert_documents_batch(es_documents)
-        progress_table.update_progress(task_id, 1.0, f"完成，共写入 {len(es_documents)} 条向量数据")
+        if task_id:
+            progress_table.update_progress(task_id, 1.0, f"完成，共写入 {len(es_documents)} 条向量数据")
 
         file_table = FileRecord(app_id=self.app_id)
         file_table.create_record(team_id, self.index_name_with_no_suffix, file_url, {

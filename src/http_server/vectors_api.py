@@ -6,6 +6,7 @@ from vines_worker_sdk.server.exceptions import ServerException, ClientException
 import uuid
 from src.queue import submit_task, PROCESS_FILE_QUEUE_NAME
 from src.es import ESClient
+from ..utils.oss import TOSClient
 
 
 @app.post("/api/vector/collections/<string:name>/records")
@@ -23,6 +24,7 @@ def save_vector(name):
     text = data.get("text")
     file_url = data.get("fileURL")
     metadata = data.get("metadata", {})
+    oss_config = data.get('ossConfig', None)
     metadata["userId"] = user_id
 
     es_client = ESClient(app_id=app_id, index_name=name)
@@ -41,7 +43,7 @@ def save_vector(name):
         return {
             "pk": pk
         }
-    elif file_url:
+    elif file_url or oss_config:
         split = data.get('split', {})
         params = split.get('params', {})
 
@@ -67,6 +69,7 @@ def save_vector(name):
             'collection_name': name,
             'embedding_model': embedding_model,
             'file_url': file_url,
+            'oss_config': oss_config,
             'metadata': metadata,
             'task_id': task_id,
             'chunk_size': chunk_size,
@@ -78,6 +81,32 @@ def save_vector(name):
         return {"taskId": task_id}
     else:
         raise ServerException("非法的请求参数，请传入 text 或者 fileUrl")
+
+
+@app.post("/api/vector/collections/<string:name>/records/oss-import-test")
+def oss_import_test(name):
+    data = request.json
+    oss_type, oss_config = data.get('ossType'), data.get('ossConfig')
+    if oss_type == 'TOS':
+        endpoint, region, bucket_name, accessKeyId, accessKeySecret, baseFlder, fileExtensions, excludeFileRegex = oss_config.get(
+            'endpoint'), oss_config.get('region'), oss_config.get('bucketName'), oss_config.get(
+            'accessKeyId'), oss_config.get('accessKeySecret'), oss_config.get('baseFlder'), oss_config.get(
+            'fileExtensions'), oss_config.get('excludeFileRegex')
+        tos_client = TOSClient(
+            endpoint,
+            region,
+            bucket_name,
+            accessKeyId,
+            accessKeySecret,
+        )
+        result = tos_client.test_connection(
+            baseFlder,
+        )
+        return {
+            "result": result
+        }
+    else:
+        raise Exception(f"不支持的 oss 类型: {oss_type}")
 
 
 @app.post("/api/vector/collections/<string:name>/records/upsert")

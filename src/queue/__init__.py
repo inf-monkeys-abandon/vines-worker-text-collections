@@ -108,8 +108,8 @@ def consume_task(task_data):
                         processed += 1
                         progress = "{:.2f}".format(processed / len(all_files))
                         progress_table.update_progress(
-                            task_id=task_id, progress=0.1 + processed / len(all_files),
-                            message=f"已写入 {progress} 个文件"
+                            task_id=task_id, progress=0.1 + float(progress),
+                            message=f"已写入 {processed}/{len(all_files)} 个文件"
                         )
                     table.add_metadata_fields_if_not_exists(
                         team_id, collection_name, ['filename', 'filepath']

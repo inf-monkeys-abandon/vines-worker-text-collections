@@ -236,7 +236,7 @@ class ESClient:
                                )
         texts = [text.page_content for text in texts]
         if len(texts) == 0:
-            raise Exception("解析到的段落数为 0")
+            return
         if task_id:
             progress_table.update_progress(task_id, 0.3, "已加载文件")
 

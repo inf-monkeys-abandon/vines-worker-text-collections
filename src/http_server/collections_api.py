@@ -192,6 +192,25 @@ def delete_collection(name):
     }
 
 
+@app.post("/api/vector/collections/<string:name>/delete-all-data")
+def empty_collection(name):
+    app_id = request.app_id
+    es_client = ESClient(app_id=app_id, index_name=name)
+    # 删除索引
+    es_client.delete_index()
+    # 重新创建个新的
+    table = CollectionTable(
+        app_id=app_id
+    )
+    collection = table.find_by_name_without_team(name)
+    es_client.create_es_index(
+        dimension=collection['dimension']
+    )
+    return {
+        "success": True
+    }
+
+
 @app.get("/api/vector/collections/<string:name>/tasks")
 def list_tasks(name):
     team_id = request.team_id

@@ -87,30 +87,39 @@ def consume_task(task_data):
                     )
                 else:
                     processed = 0
+                    failed = 0
                     for absolute_filename in all_files:
-                        _, name_with_no, txt_filename = absolute_filename.split("/")
-                        filename_without_suffix = name_with_no.split("-")[-1] + txt_filename.split(".")[0]
-                        presign_url = tos_client.get_signed_url(absolute_filename)
-                        signed_url = presign_url.signed_url
-                        metadata = {
-                            "filename": filename_without_suffix,
-                            "filepath": absolute_filename
-                        }
-                        es_client.insert_vector_from_file(
-                            team_id,
-                            embedding_model, signed_url, metadata,
-                            chunk_size=chunk_size,
-                            chunk_overlap=chunk_overlap,
-                            separator=separator,
-                            pre_process_rules=pre_process_rules,
-                            jqSchema=jqSchema
-                        )
-                        processed += 1
-                        progress = "{:.2f}".format(processed / len(all_files))
-                        progress_table.update_progress(
-                            task_id=task_id, progress=0.1 + float(progress),
-                            message=f"已写入 {processed}/{len(all_files)} 个文件"
-                        )
+                        try:
+                            _, name_with_no, txt_filename = absolute_filename.split("/")
+                            filename_without_suffix = name_with_no.split("-")[-1] + txt_filename.split(".")[0]
+                            presign_url = tos_client.get_signed_url(absolute_filename)
+                            signed_url = presign_url.signed_url
+                            metadata = {
+                                "filename": filename_without_suffix,
+                                "filepath": absolute_filename
+                            }
+                            es_client.insert_vector_from_file(
+                                team_id,
+                                embedding_model, signed_url, metadata,
+                                chunk_size=chunk_size,
+                                chunk_overlap=chunk_overlap,
+                                separator=separator,
+                                pre_process_rules=pre_process_rules,
+                                jqSchema=jqSchema
+                            )
+                        except Exception as e:
+                            failed += 1
+                            print(f"导入文件失败：file={absolute_filename}, 错误信息: ")
+                            traceback.print_exc()
+                        finally:
+                            processed += 1
+                            progress = "{:.2f}".format(processed / len(all_files))
+                            message = f"已成功写入 {processed}/{len(all_files)} 个文件" if failed == 0 else f"已成功写入 {processed}/{len(all_files)} 个文件，失败 {failed} 个文件"
+                            progress_table.update_progress(
+                                task_id=task_id, progress=0.1 + float(progress),
+                                message=message
+                            )
+
                     table.add_metadata_fields_if_not_exists(
                         team_id, collection_name, ['filename', 'filepath']
                     )

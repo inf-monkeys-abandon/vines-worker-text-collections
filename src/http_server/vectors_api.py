@@ -168,12 +168,12 @@ def vector_search(name):
     data = request.json
     collection = table.find_by_name(team_id, name)
     embedding_model = collection["embeddingModel"]
-    expr = data.get("expr")
     query = data.get("query")
     limit = data.get("limit", 30)
+    metadataFilter = data.get('metadataFilter', None)
     embedding = generate_embedding_of_model(embedding_model, query)
     es_client = ESClient(app_id=app_id, index_name=name)
-    hits = es_client.vector_search(embedding, limit)
+    hits = es_client.vector_search(embedding, limit, metadata_filter=metadataFilter)
     return {"hits": hits}
 
 

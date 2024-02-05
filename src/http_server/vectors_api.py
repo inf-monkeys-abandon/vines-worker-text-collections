@@ -6,7 +6,8 @@ from vines_worker_sdk.server.exceptions import ServerException, ClientException
 import uuid
 from src.queue import submit_task, PROCESS_FILE_QUEUE_NAME
 from src.es import ESClient
-from ..utils.oss import TOSClient
+from ..utils.oss.tos import TOSClient
+from ..utils.oss.aliyunoss import AliyunOSSClient
 
 
 @app.post("/api/vector/collections/<string:name>/records")
@@ -30,19 +31,34 @@ def save_vector(name):
     es_client = ESClient(app_id=app_id, index_name=name)
 
     if text:
-        embedding = generate_embedding_of_model(embedding_model, [text])
-        pk = generate_md5(text)
-        es_client.upsert_document(pk, {
-            "page_content": text,
-            "metadata": metadata,
-            "embeddings": embedding[0]
-        })
-        table.add_metadata_fields_if_not_exists(
-            team_id, name, metadata.keys()
-        )
-        return {
-            "pk": pk
-        }
+        delimiter = data.get('delimiter')
+        if delimiter:
+            delimiter = delimiter.replace('\\n', '\n')
+            text_list = text.split(delimiter)
+            text_list = [
+                {
+                    "page_content": item,
+                    "metadata": metadata
+                } for item in text_list
+            ]
+            es_client.insert_texts_batch(embedding_model, text_list)
+            return {
+                'inserted': len(text_list)
+            }
+        else:
+            embedding = generate_embedding_of_model(embedding_model, [text])
+            pk = generate_md5(text)
+            es_client.upsert_document(pk, {
+                "page_content": text,
+                "metadata": metadata,
+                "embeddings": embedding[0]
+            })
+            table.add_metadata_fields_if_not_exists(
+                team_id, name, metadata.keys()
+            )
+            return {
+                "pk": pk
+            }
     elif file_url or oss_config:
         split = data.get('split', {})
         params = split.get('params', {})
@@ -88,10 +104,9 @@ def oss_import_test(name):
     data = request.json
     oss_type, oss_config = data.get('ossType'), data.get('ossConfig')
     if oss_type == 'TOS':
-        endpoint, region, bucket_name, accessKeyId, accessKeySecret, baseFlder, fileExtensions, excludeFileRegex = oss_config.get(
+        endpoint, region, bucket_name, accessKeyId, accessKeySecret, baseFolder = oss_config.get(
             'endpoint'), oss_config.get('region'), oss_config.get('bucketName'), oss_config.get(
-            'accessKeyId'), oss_config.get('accessKeySecret'), oss_config.get('baseFlder'), oss_config.get(
-            'fileExtensions'), oss_config.get('excludeFileRegex')
+            'accessKeyId'), oss_config.get('accessKeySecret'), oss_config.get('baseFolder')
         tos_client = TOSClient(
             endpoint,
             region,
@@ -100,7 +115,23 @@ def oss_import_test(name):
             accessKeySecret,
         )
         result = tos_client.test_connection(
-            baseFlder,
+            baseFolder,
+        )
+        return {
+            "result": result
+        }
+    elif oss_type == 'ALIYUNOSS':
+        endpoint, bucket_name, accessKeyId, accessKeySecret, baseFolder = oss_config.get(
+            'endpoint'), oss_config.get('bucketName'), oss_config.get(
+            'accessKeyId'), oss_config.get('accessKeySecret'), oss_config.get('baseFolder')
+        aliyunoss_client = AliyunOSSClient(
+            endpoint=endpoint,
+            bucket_name=bucket_name,
+            access_key=accessKeyId,
+            secret_key=accessKeySecret
+        )
+        result = aliyunoss_client.test_connection(
+            baseFolder,
         )
         return {
             "result": result
@@ -123,17 +154,18 @@ def upsert_vector_batch(name):
     list = request.json
     texts = [item["text"] for item in list]
     embeddings = generate_embedding_of_model(embedding_model, texts)
-    es_client.upsert_documents_batch(
-        [
-            {
-                "_id": item['pk'],
-                "_source": {
-                    "page_content": item['text'],
-                    "metadata": item['metadata'],
-                    "embeddings": embeddings[index]
-                }
+    es_documents = []
+    for (index, item) in enumerate(list):
+        es_documents.append({
+            "_id": item['pk'],
+            "_source": {
+                "page_content": item['text'],
+                "metadata": item['metadata'],
+                "embeddings": embeddings[index]
             }
-        ] for (item, index) in enumerate(list)
+        })
+    es_client.upsert_documents_batch(
+        es_documents
     )
     return {"success": True}
 

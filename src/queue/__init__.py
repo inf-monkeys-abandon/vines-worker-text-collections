@@ -2,7 +2,8 @@ import os
 import redis
 import json
 import traceback
-from src.utils.oss import TOSClient
+from src.utils.oss.tos import TOSClient
+from src.utils.oss.aliyunoss import AliyunOSSClient
 from src.database import CollectionTable, FileProcessProgressTable
 from src.es import ESClient
 
@@ -41,9 +42,9 @@ def consume_task(task_data):
         try:
             oss_type, oss_config = oss_config.get('ossType'), oss_config.get('ossConfig')
             if oss_type == 'TOS':
-                endpoint, region, bucket_name, accessKeyId, accessKeySecret, baseFlder, fileExtensions, excludeFileRegex, importFileNameNotContent = oss_config.get(
+                endpoint, region, bucket_name, accessKeyId, accessKeySecret, baseFolder, fileExtensions, excludeFileRegex, importFileNameNotContent = oss_config.get(
                     'endpoint'), oss_config.get('region'), oss_config.get('bucketName'), oss_config.get(
-                    'accessKeyId'), oss_config.get('accessKeySecret'), oss_config.get('baseFlder'), oss_config.get(
+                    'accessKeyId'), oss_config.get('accessKeySecret'), oss_config.get('baseFolder'), oss_config.get(
                     'fileExtensions'), oss_config.get('excludeFileRegex'), oss_config.get(
                     'importFileNameNotContent')
                 if fileExtensions:
@@ -56,73 +57,101 @@ def consume_task(task_data):
                     accessKeySecret,
                 )
                 all_files = tos_client.get_all_files_in_base_folder(
-                    baseFlder,
+                    baseFolder,
                     fileExtensions,
                     excludeFileRegex
                 )
                 progress_table.update_progress(
                     task_id=task_id, progress=0.1, message=f"共获取到 {len(all_files)} 个文件"
                 )
-                if importFileNameNotContent:
-                    texts_to_insert = []
-                    for absolute_filename in all_files:
-                        _, name_with_no, txt_filename = absolute_filename.split("/")
-                        filename_without_suffix = name_with_no.split("-")[-1] + txt_filename.split(".")[0]
-                        texts_to_insert.append({
-                            "page_content": filename_without_suffix,
-                            "metadata": {
-                                "filepath": absolute_filename
-                            }
-                        })
+                processed = 0
+                failed = 0
+                for absolute_filename in all_files:
+                    try:
+                        presign_url = tos_client.get_signed_url(absolute_filename)
+                        signed_url = presign_url.signed_url
+                        metadata = {
+                            "filename": absolute_filename
+                        }
+                        es_client.insert_vector_from_file(
+                            team_id,
+                            embedding_model, signed_url, metadata,
+                            chunk_size=chunk_size,
+                            chunk_overlap=chunk_overlap,
+                            separator=separator,
+                            pre_process_rules=pre_process_rules,
+                            jqSchema=jqSchema
+                        )
+                    except Exception as e:
+                        failed += 1
+                        print(f"导入文件失败：file={absolute_filename}, 错误信息: ")
+                        traceback.print_exc()
+                    finally:
+                        processed += 1
+                        progress = "{:.2f}".format(processed / len(all_files))
+                        message = f"已成功写入 {processed}/{len(all_files)} 个文件" if failed == 0 else f"已成功写入 {processed}/{len(all_files)} 个文件，失败 {failed} 个文件"
+                        progress_table.update_progress(
+                            task_id=task_id, progress=0.1 + float(progress),
+                            message=message
+                        )
 
-                    es_client.insert_texts_batch(
-                        embedding_model=embedding_model,
-                        text_list=texts_to_insert
-                    )
-                    progress_table.update_progress(
-                        task_id=task_id, progress=1, message=f"写入完成，共 {len(all_files)} 个文件"
-                    )
-                    table.add_metadata_fields_if_not_exists(
-                        team_id, collection_name, ['filename', 'filepath']
-                    )
-                else:
-                    processed = 0
-                    failed = 0
-                    for absolute_filename in all_files:
-                        try:
-                            _, name_with_no, txt_filename = absolute_filename.split("/")
-                            filename_without_suffix = name_with_no.split("-")[-1] + txt_filename.split(".")[0]
-                            presign_url = tos_client.get_signed_url(absolute_filename)
-                            signed_url = presign_url.signed_url
-                            metadata = {
-                                "filename": filename_without_suffix,
-                                "filepath": absolute_filename
-                            }
-                            es_client.insert_vector_from_file(
-                                team_id,
-                                embedding_model, signed_url, metadata,
-                                chunk_size=chunk_size,
-                                chunk_overlap=chunk_overlap,
-                                separator=separator,
-                                pre_process_rules=pre_process_rules,
-                                jqSchema=jqSchema
-                            )
-                        except Exception as e:
-                            failed += 1
-                            print(f"导入文件失败：file={absolute_filename}, 错误信息: ")
-                            traceback.print_exc()
-                        finally:
-                            processed += 1
-                            progress = "{:.2f}".format(processed / len(all_files))
-                            message = f"已成功写入 {processed}/{len(all_files)} 个文件" if failed == 0 else f"已成功写入 {processed}/{len(all_files)} 个文件，失败 {failed} 个文件"
-                            progress_table.update_progress(
-                                task_id=task_id, progress=0.1 + float(progress),
-                                message=message
-                            )
+                table.add_metadata_fields_if_not_exists(
+                    team_id, collection_name, ['filename', 'filepath']
+                )
+            elif oss_type == 'ALIYUNOSS':
+                endpoint, bucket_name, accessKeyId, accessKeySecret, baseFolder, fileExtensions, excludeFileRegex, importFileNameNotContent = oss_config.get(
+                    'endpoint'), oss_config.get('bucketName'), oss_config.get(
+                    'accessKeyId'), oss_config.get('accessKeySecret'), oss_config.get('baseFolder'), oss_config.get(
+                    'fileExtensions'), oss_config.get('excludeFileRegex'), oss_config.get(
+                    'importFileNameNotContent')
+                aliyunoss_client = AliyunOSSClient(
+                    endpoint=endpoint,
+                    bucket_name=bucket_name,
+                    access_key=accessKeyId,
+                    secret_key=accessKeySecret
+                )
+                all_files = aliyunoss_client.get_all_files_in_base_folder(
+                    baseFolder,
+                    fileExtensions,
+                    excludeFileRegex
+                )
+                progress_table.update_progress(
+                    task_id=task_id, progress=0.1, message=f"共获取到 {len(all_files)} 个文件"
+                )
+                processed = 0
+                failed = 0
+                for absolute_filename in all_files:
+                    try:
+                        signed_url = aliyunoss_client.get_signed_url(absolute_filename)
+                        metadata = {
+                            "filename": absolute_filename
+                        }
+                        es_client.insert_vector_from_file(
+                            team_id,
+                            embedding_model, signed_url, metadata,
+                            chunk_size=chunk_size,
+                            chunk_overlap=chunk_overlap,
+                            separator=separator,
+                            pre_process_rules=pre_process_rules,
+                            jqSchema=jqSchema
+                        )
+                    except Exception as e:
+                        failed += 1
+                        print(f"导入文件失败：file={absolute_filename}, 错误信息: ")
+                        traceback.print_exc()
+                    finally:
+                        processed += 1
+                        progress = "{:.2f}".format(processed / len(all_files))
+                        message = f"已成功写入 {processed}/{len(all_files)} 个文件" if failed == 0 else f"已成功写入 {processed}/{len(all_files)} 个文件，失败 {failed} 个文件"
+                        progress_table.update_progress(
+                            task_id=task_id, progress=0.1 + float(progress),
+                            message=message
+                        )
 
-                    table.add_metadata_fields_if_not_exists(
-                        team_id, collection_name, ['filename', 'filepath']
-                    )
+                table.add_metadata_fields_if_not_exists(
+                    team_id, collection_name, ['filename', 'filepath']
+                )
+
         except Exception as e:
             traceback.print_exc()
             progress_table.mark_task_failed(

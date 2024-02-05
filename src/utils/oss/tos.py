@@ -1,5 +1,3 @@
-import threading
-
 import tos
 from tos import HttpMethodType
 import re

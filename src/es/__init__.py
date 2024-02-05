@@ -197,17 +197,18 @@ class ESClient:
             item['page_content'] for item in text_list
         ]
         embeddings = generate_embedding_of_model(embedding_model, page_contents)
-        self.upsert_documents_batch(
-            [
-                {
-                    "_id": generate_md5(item['page_content']),
-                    "_source": {
-                        "page_content": item['page_content'],
-                        "metadata": item.get('metadata', {}),
-                        "embeddings": embeddings[index]
-                    }
+        es_documents = []
+        for (index, item) in enumerate(text_list):
+            es_documents.append({
+                "_id": generate_md5(item['page_content']),
+                "_source": {
+                    "page_content": item['page_content'],
+                    "metadata": item.get('metadata', {}),
+                    "embeddings": embeddings[index]
                 }
-            ] for (item, index) in enumerate(text_list)
+            })
+        self.upsert_documents_batch(
+            es_documents
         )
 
     def insert_vector_from_file(

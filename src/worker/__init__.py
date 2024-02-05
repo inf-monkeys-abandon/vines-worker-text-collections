@@ -3,17 +3,11 @@ import sys
 import signal
 from vines_worker_sdk.conductor import ConductorClient
 from ..oss import oss_client
-from .blocks.search_vector import BLOCK_NAME as SEARCH_VECTOR_BLOCK_NAME, BLOCK_DEF as SEARCH_VECTOR_BLOCK_DEF, \
-    handler as search_vector_handler
-from .blocks.insert_vector import BLOCK_NAME as INSERT_VECTOR_BLOCK_NAME, BLOCK_DEF as INSERT_VECTOR_BLOCK_DEF, \
-    handler as insert_vector_handler
-from .blocks.text_to_embedding import BLOCK_NAME as TEXT_TO_EMBEDDING_BLOCK_NAME, \
-    BLOCK_DEF as TEXT_TO_EMBEDDING_BLOCK_DEF, \
-    handler as text_to_embedding_handler
-from .blocks.rerank import BLOCK_NAME as RERANKER_BLOCK_NAME, BLOCK_DEF as RERANKER_BLOCK_DEF, \
-    handler as reranker_handler
-from .blocks.fulltext_search_documents import BLOCK_NAME as FULLTEXT_SEARCH_BLOCK_NAME, \
-    BLOCK_DEF as FULLTEXT_SEARCH_BLOCK_DEF, handler as fulltext_search_handler
+from .blocks.fulltext_search_documents import FullTextSearchWorker
+from .blocks.rerank import RerankerWorker
+from .blocks.search_vector import SearchVectorWorker
+from .blocks.insert_vector import InsertVectorWorker
+from .blocks.text_to_embedding import TextToEmbeddingWorker
 
 SERVICE_REGISTRATION_URL = os.environ.get("SERVICE_REGISTRATION_URL")
 SERVICE_REGISTRATION_TOKEN = os.environ.get("SERVICE_REGISTRATION_TOKEN")
@@ -34,6 +28,8 @@ REDIS_URL = os.environ.get("REDIS_URL")
 if not REDIS_URL:
     raise Exception("请在环境变量中配置 REDIS_URL")
 
+ADMIN_SERVER_URL = os.environ.get('ADMIN_SERVER_URL', None)
+
 conductor_client = ConductorClient(
     service_registration_url=SERVICE_REGISTRATION_URL,
     service_registration_token=SERVICE_REGISTRATION_TOKEN,
@@ -46,6 +42,7 @@ conductor_client = ConductorClient(
         "password": CONDUCTOR_PASSWORD,
     },
     external_storage=oss_client,
+    admin_server_url=ADMIN_SERVER_URL
 )
 
 
@@ -60,13 +57,8 @@ def signal_handler(signum, frame):
 signal.signal(signal.SIGINT, signal_handler)
 signal.signal(signal.SIGTERM, signal_handler)
 
-conductor_client.register_block(SEARCH_VECTOR_BLOCK_DEF)
-conductor_client.register_block(INSERT_VECTOR_BLOCK_DEF)
-conductor_client.register_block(TEXT_TO_EMBEDDING_BLOCK_DEF)
-conductor_client.register_handler(SEARCH_VECTOR_BLOCK_NAME, search_vector_handler)
-conductor_client.register_handler(INSERT_VECTOR_BLOCK_NAME, insert_vector_handler)
-conductor_client.register_handler(TEXT_TO_EMBEDDING_BLOCK_NAME, text_to_embedding_handler)
-conductor_client.register_block(RERANKER_BLOCK_DEF)
-conductor_client.register_handler(RERANKER_BLOCK_NAME, reranker_handler)
-conductor_client.register_block(FULLTEXT_SEARCH_BLOCK_DEF)
-conductor_client.register_handler(FULLTEXT_SEARCH_BLOCK_NAME, fulltext_search_handler)
+conductor_client.register_worker(FullTextSearchWorker())
+conductor_client.register_worker(InsertVectorWorker())
+conductor_client.register_worker(RerankerWorker())
+conductor_client.register_worker(SearchVectorWorker())
+conductor_client.register_worker(TextToEmbeddingWorker())

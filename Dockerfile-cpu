@@ -1,0 +1,24 @@
+FROM python:3.10.14
+
+ARG DEBIAN_FRONTEND=noninteractive
+ENV TZ=Asia/Shanghai
+RUN apt-get update && \
+    apt-get install git default-jre pandoc python3 python3-pip vim wget curl -y
+
+WORKDIR /app
+
+# Install Python dependencies
+RUN pip3 install --upgrade pip && \
+    pip3 install torch && \
+    pip3 cache purge
+
+COPY requirements.txt requirements.txt
+RUN pip3 install -r requirements.txt && pip3 cache purge
+
+# Copy the rest of the files
+COPY . .
+
+EXPOSE 8899
+
+# Run the app
+CMD [ "python3", "main.py" ]

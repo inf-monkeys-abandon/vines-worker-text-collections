@@ -1,0 +1,35 @@
+FROM ascendhub.huawei.com/public-ascendhub/ascend-pytorch:23.0.0-A2-1.11.0-ubuntu18.04
+
+USER root
+ENV TZ=Asia/Shanghai
+
+SHELL ["/bin/bash", "-c"]
+
+RUN apt-get update && apt-get install -y curl git && \
+    mkdir ~/miniconda3 && \
+    wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-aarch64.sh && \
+    bash Miniconda3-latest-Linux-aarch64.sh -b -u -p ~/miniconda3 && \
+    ~/miniconda3/bin/conda init bash
+
+RUN . "/root/miniconda3/etc/profile.d/conda.sh" && \
+    conda create -y --name vines python=3.10.12
+
+RUN . "/root/miniconda3/etc/profile.d/conda.sh" && \
+    conda activate vines && \
+    pip install pyyaml setuptools && \
+    pip install torch==2.1.0 torch-npu==2.1.0 torchvision==0.16.0 && \
+    pip cache purge
+
+COPY requirements.txt requirements.txt
+RUN . "/root/miniconda3/etc/profile.d/conda.sh" && \
+    conda activate vines && \
+    pip install -r requirements.txt && \
+    pip cache purge
+
+COPY . .
+
+# Expose port 8899
+EXPOSE 8899
+
+# Run the app
+CMD [ "bash", "-c", '. "/root/miniconda3/etc/profile.d/conda.sh"; conda activate vines; export LD_PRELOAD=/usr/lib/aarch64-linux-gnu/libgomp.so.1:\$LD_PRELOAD; python3 main.py' ]

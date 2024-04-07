@@ -8,6 +8,11 @@ import torch
 import re
 import hashlib
 
+try:
+    import torch_npu
+except ImportError:
+    pass
+
 sid = ShortId()
 
 ROOT_FOLDER = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))

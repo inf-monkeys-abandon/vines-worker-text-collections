@@ -10,9 +10,12 @@ from src.queue import consume_task_forever, PROCESS_FILE_QUEUE_NAME
 
 
 def start_http_server():
-    app.run(host='0.0.0.0', port=8899)
-    # 使用 npu 时只能用单线程
-    # app.run(host='0.0.0.0', port=8899, threaded=False, processes=1)
+    from transformers import is_npu_available
+    if is_npu_available():
+        # 使用 npu 时只能用单线程
+        app.run(host='0.0.0.0', port=8899, threaded=False, processes=1)
+    else:
+        app.run(host='0.0.0.0', port=8899)
 
 
 if __name__ == '__main__':

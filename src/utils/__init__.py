@@ -36,7 +36,6 @@ def generate_md5(string: str):
 
 
 def load_model(model_name):
-    global MODEL_CACHE
     if model_name in MODEL_CACHE:
         return MODEL_CACHE[model_name]
     model_path = get_model_path_by_embedding_model(model_name)

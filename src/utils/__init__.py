@@ -17,6 +17,7 @@ sid = ShortId()
 
 ROOT_FOLDER = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
 
+MODEL_CACHE = {}
 
 def generate_pk():
     return str(uuid.uuid4())
@@ -34,13 +35,20 @@ def generate_md5(string: str):
     return hashlib.md5(string.encode('utf-8')).hexdigest()
 
 
-def generate_embedding_of_model(model_name, q):
+def load_model(model_name):
+    global MODEL_CACHE
+    if model_name in MODEL_CACHE:
+        return MODEL_CACHE[model_name]
     model_path = get_model_path_by_embedding_model(model_name)
     model = FlagModel(
-        # 如果本地有下载 model 使用本地的，否则在线下载
         model_path if os.path.exists(model_path) else model_name,
         use_fp16=True
-    )  # Setting use_fp16 to True speeds up computation with a slight performance degradation
+    )
+    MODEL_CACHE[model_name] = model
+    return model
+
+def generate_embedding_of_model(model_name, q):
+    model = load_model(model_name)
     embeddings = model.encode(q)
     torch.cuda.empty_cache()
     return embeddings
